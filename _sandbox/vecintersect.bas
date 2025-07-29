@@ -1,8 +1,20 @@
-#include once "space/inc/vector2.bi"
+
+
+#cmdline "-i ../space/src/inc/"
+#cmdline "-b ../space/src/vector2.bas"
+
+#include once "vector2.bi"
 #include once "fbgfx.bi"
 using fb
 
 const pi = 3.141592
+
+'randomize 1111 'intersection
+'randomize 1117 'intersection
+'randomize 1227 'no intersection
+'randomize 1337 'no intersection
+randomize 1447 'intersection
+
 
 enum LineStyle
     dash      = &b1111000011110000
@@ -60,7 +72,7 @@ end sub
 sub drawThickVector (v as Vector2, offset as Vector2 = type(0, 0), colr as integer = &hffffffff, style as integer = LineStyle.solid)
     dim as double thickness = abs(pmap(0,2)-pmap(1,2))
     for y as integer = -1 to 1
-        dim as Vector2 o = offset + v.unit.starboard * y * thickness
+        dim as Vector2 o = offset + normalize(v).rotatedRight * y * thickness
         line (o.x, o.y)-step(v.x, v.y), colr, , style
     next y
 end sub
@@ -80,15 +92,6 @@ sub drawCircle (origin as Vector2, r as double, colr as integer = &hffffffff, st
     end if
 end sub
 
-
-'a = type(Vector2(2, 5), Vector2(8, 7), &hff0000)
-'b = type(Vector2(5, 5), Vector2(7, 8), &h00ff00)
-randomize 1111
-'randomize 1117
-'randomize 1227
-'randomize 1337
-'randomize 1447
-
 sub drawGrid(gridColor as integer = &h606060, axisColor as integer = &h808080)
     for i as integer = -10 to 10 step 2
         if i = 0 then
@@ -103,26 +106,56 @@ end sub
 
 function render() as LineSegment2
     dim as LineSegment2 a, b
-    randomize 4
-    a = type(Vector2(10*rnd, 10*rnd), Vector2(10*rnd, 10*rnd), &hff0000)
-    b = type(Vector2(10*rnd, 10*rnd), Vector2(10*rnd, 10*rnd), &h00ff00)
+
+    a = type(Vector2(rnd, rnd)*10, Vector2(rnd, rnd)*10, &hff0000)
+    b = type(Vector2(rnd, rnd)*10, Vector2(rnd, rnd)*10, &h00ff00)
 
     drawGrid
 
-    dim as Vector2 adot = a.vector.unit*a.vector.unit.dot(b.vector)
-    dim as Vector2 bdot = b.vector.unit*b.vector.unit.dot(a.vector)
+    dim as Vector2 adot = normalize(a.vector)*dot(normalize(a.vector), b.vector)
+    dim as Vector2 bdot = normalize(b.vector)*dot(normalize(b.vector), a.vector)
 
     dim as Vector2 intersection
-    'intersection = a.a + a.vector.unit*abs(a.vector.unit.dot(a.b - b.a))
-    'intersection = a.b + a.vector.unit * adot.y '- 1111
-    'intersection = a.b + a.vector.unit * adot.x '- 1117
-    intersection = a.a + a.vector.unit * vector2_dot(a.vector, (b.a - a.a).unit)
-    drawCircle intersection, 1, &hffff00, LineStyle.dot
-    line (intersection.x, intersection.y+1)-step(0, -2), &hffffff, , LineStyle.dot
-    line (intersection.x-1, intersection.y)-step(2, 0), &hffffff, , LineStyle.shortDash
-    line (intersection.x-2/3, intersection.y+2/3)-step(4/3, -4/3), &hffffff, , LineStyle.shortDash
-    line (intersection.x+2/3, intersection.y+2/3)-step(-4/3, -4/3), &hffffff, , LineStyle.shortDash
-
+    dim as Vector2 apos, bpos
+    apos = (a.a + a.b)/2
+    bpos = (b.a + b.b)/2
+    dim as Vector2 anorm, bnorm
+    anorm = normalize((a.b - a.a).rotatedRight())
+    bnorm = normalize((b.b - b.a).rotatedRight())
+    line (apos.x, apos.y)-step(anorm.x, anorm.y), &hffcc00
+    line (bpos.x, bpos.y)-step(bnorm.x, bnorm.y), &hffcc00
+    dim as double aside0, bside0
+    dim as double aside1, bside1
+    dim as double aside, bside
+    aside0 = dot(bnorm, a.a - bpos)
+    bside0 = dot(bnorm, a.b - bpos)
+    aside1 = dot(anorm, b.a - apos)
+    bside1 = dot(anorm, b.b - apos)
+    if (aside0 < 0 and bside0 < 0) or (aside0 > 0 and bside0 > 0) or _
+       (aside1 < 0 and bside1 < 0) or (aside1 > 0 and bside1 > 0) then
+        '- no intersection
+    else
+        aside = aside0
+        bside = bside0
+        if (aside > 0 and bside < 0) or (aside < 0 and bside > 0) then
+            intersection = a.a + a.vector * abs(aside) / (abs(aside) + abs(bside))
+            drawCircle intersection, 1, &hffff00, LineStyle.dot
+            line (intersection.x, intersection.y+1)-step(0, -2), &hffffff, , LineStyle.dot
+            line (intersection.x-1, intersection.y)-step(2, 0), &hffffff, , LineStyle.shortDash
+            line (intersection.x-2/3, intersection.y+2/3)-step(4/3, -4/3), &hffffff, , LineStyle.shortDash
+            line (intersection.x+2/3, intersection.y+2/3)-step(-4/3, -4/3), &hffffff, , LineStyle.shortDash
+        end if
+        aside = aside1
+        bside = bside1
+        if (aside > 0 and bside < 0) or (aside < 0 and bside > 0) then
+            intersection = b.a + b.vector * abs(aside) / (abs(aside) + abs(bside))
+            drawCircle intersection, 0.9, &h00ffff, LineStyle.dot
+            line (intersection.x, intersection.y+0.9)-step(0, -2), &hffffff, , LineStyle.dot
+            line (intersection.x-0.9, intersection.y)-step(2, 0), &hffffff, , LineStyle.shortDash
+            line (intersection.x-2/3+0.1, intersection.y+2/3-0.1)-step(4/3-0.1, -4/3+0.1), &hffffff, , LineStyle.shortDash
+            line (intersection.x+2/3-0.1, intersection.y+2/3-0.1)-step(-4/3+0.1, -4/3+0.1), &hffffff, , LineStyle.shortDash
+        end if
+    end if
     drawLineSegment a
     drawLineSegment b
     drawVector a.vector, , a.colr, LineStyle.longDash
