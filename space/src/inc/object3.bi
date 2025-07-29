@@ -7,12 +7,13 @@
 #include once "vector3.bi"
 
 type Object3
-    sid as string
     angular as Vector3
+    callback as sub(byref o as Object3, byref camera as CFrame3, byref world as CFrame3, deltaTime as double)
     cframe as CFrame3
     linear as Vector3
     mesh as Mesh3
-    callback as sub(byref o as Object3, byref camera as CFrame3, byref world as CFrame3, deltaTime as double)
+    sid as string
+    visible as boolean = true
     declare constructor ()
     declare constructor (sid as string, filename as string = "")
     declare property position as Vector3
@@ -24,5 +25,6 @@ type Object3
     declare property upward as Vector3
     declare function loadFile (filename as string) as integer
     declare function toWorld() as Object3
-    declare function vectorToLocal(a as Vector3) as Vector3
+    declare function vectorToLocal(w as Vector3) as Vector3
+    declare function vectorToWorld(l as Vector3) as Vector3
 end type

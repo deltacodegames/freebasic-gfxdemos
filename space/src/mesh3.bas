@@ -16,18 +16,10 @@
     return ubound(arr)
 #endmacro
 
-function Mesh3.addFace(face as Face3) as integer
-    dim as Vector3 vertexSum
-    dim as integer vertexId
-    if ubound(face.vertexIds) >= 0 then
-        for i as integer = 0 to ubound(face.vertexIds)
-            vertexId   = face.vertexIds(i)
-            vertexSum += getVertex(vertexId)
-        next i
-        face.position = vertexSum / (ubound(face.vertexIds) + 1)
-    end if
-    face.id = ubound(faces) + 1
-    array_append_return_ubound(faces, face)
+function Mesh3.addFace(face as Face3) as Mesh3
+    array_append(faces, face)
+    faces(ubound(faces)).id = ubound(faces)
+    return this
 end function
 '~ function Mesh3.getAverageTextureFaceColor() as integer
     '~ dim as Mesh3 mesh = spaceship->mesh
@@ -55,34 +47,47 @@ end function
         '~ spaceship->mesh.faces(i).colr = rgb(r, g, b)
     '~ next i
 '~ end function
-function Mesh3.addNormal(normal as Vector3) as integer
-    array_append_return_ubound(normals, normal)
-end function
-function Mesh3.addUV(uv as Vector2) as integer
-    array_append_return_ubound(uvs, uv)
-end function
-function Mesh3.addVertex(vertex as Vector3) as integer
-    array_append_return_ubound(vertexes, vertex)
-end function
 function Mesh3.centerGeometry() as Mesh3
-    dim as Vector3 average
-    for i as integer = 0 to ubound(vertexes)
-        average += vertexes(i)
+    dim as Vector3 average, unique(any), vertex
+    dim as Face3 face
+    dim as boolean isUnique
+    for i as integer = 0 to ubound(faces)
+        face = faces(i)
+        for j as integer = 0 to ubound(face.vertexes)
+            vertex = face.vertexes(j)
+            isUnique = true
+            for k as integer = 0 to ubound(unique)
+                if vertex = unique(k) then
+                    isUnique = false
+                    exit for
+                end if
+            next k
+            if isUnique then
+                array_append(unique, vertex)
+            end if
+        next j
     next i
-    average /= (ubound(vertexes) + 1)
-    for i as integer = 0 to ubound(vertexes)
-        vertexes(i) -= average
-    next i
+    if ubound(unique) >= 0 then
+        for i as integer = 0 to ubound(unique)
+            average += unique(i)
+        next i
+        average /= (ubound(unique) + 1)
+        for i as integer = 0 to ubound(faces)
+            for j as integer = 0 to ubound(face.vertexes)
+                faces(i).vertexes(j) -= average
+            next j
+        next i
+    end if
     return this
 end function
 function Mesh3.buildBsp() as Mesh3
     dim as integer faceIds(any)
-    if ubound(vertexes) >= 0 then
-        for i as integer = 0 to ubound(faces)
+    for i as integer = 0 to ubound(faces)
+        if ubound(faces(i).vertexes) >= 0 then
             array_append(faceIds, faces(i).id)
-        next i
+        end if
         bspRoot = splitBsp(faceIds())
-    end if
+    next i
     return this
 end function
 function Mesh3.splitBsp(faceIds() as integer) as BspNode3 ptr
@@ -115,9 +120,9 @@ function Mesh3.splitBsp(faceIds() as integer) as BspNode3 ptr
         nearest = getFace(faceIds(0))
         for i as integer = 0 to ubound(faceIds)
             face = getFace(faceIds(i))
-            a = getVertex(face.vertexIds(0))
-            b = getVertex(face.vertexIds(1))
-            c = getVertex(face.vertexIds(2))
+            a = face.vertexes(0)
+            b = face.vertexes(1)
+            c = face.vertexes(2)
             compare = cross(b - a, c - a).length
             if compare > comparator then
                 comparator = compare
@@ -199,18 +204,15 @@ if faceId > ubound(this.faces) then
 end if
     return this.faces(faceId)
 end function
-function Mesh3.getNormal(normalId as integer) as Vector3
-    return this.normals(normalId)
-end function
-function Mesh3.getUV(uvId as integer) as Vector2
-    return this.uvs(uvId)
-end function
-function Mesh3.getVertex(vertexId as integer) as Vector3
-    return this.vertexes(vertexId)
-end function
 function Mesh3.paintFaces(colr as integer) as Mesh3
     for i as integer = 0 to ubound(faces)
         faces(i).colr = colr
+    next i
+    return Mesh3
+end function
+function Mesh3.textureFaces(texture as any ptr) as Mesh3
+    for i as integer = 0 to ubound(faces)
+        faces(i).texture = texture
     next i
     return Mesh3
 end function

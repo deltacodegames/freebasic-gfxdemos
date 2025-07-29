@@ -7,6 +7,10 @@
 
 #define format_decimal(f, p) iif(f >= 0, " ", "-") + str(abs(fix(f))) + "." + str(int(abs(frac(f)) * 10^p))
 
+function lerp(from as double, goal as double, a as double = 0.5) as double
+    return from + (goal - from) * a
+end function
+
 function getOrientationStats(camera as CFrame3) as string
     dim as string stats(3, 3)
     for i as integer = 0 to 2
@@ -104,15 +108,16 @@ sub printStringBlock(row as integer, col as integer, text as string, header as s
     end if
 end sub
 
-function addObject(sid as string, objects() as Object3, filename as string = "") byref as Object3
+function addObject(sid as string, objects() as Object3, filename as string = "") as Object3 ptr
     dim as Object3 o = type(sid, filename)
-    array_append_return(objects, o)
+    array_append(objects, o)
+    return @objects(ubound(objects))
 end function
 
-function getObjectBySid(sid as string, objects() as Object3) byref as Object3
+function getObjectBySid(sid as string, objects() as Object3) as Object3 ptr
     for i as integer = 0 to ubound(objects)
         if objects(i).sid = sid then
-            return objects(i)
+            return @objects(i)
         end if
     next i
 end function

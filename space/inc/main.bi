@@ -6,12 +6,6 @@
 #include once "cframe3.bi"
 #include once "mouse2.bi"
 
-enum AutoQuality
-    None
-    DistanceBased
-    FpsBased
-end enum
-
 enum NavigationMode
     Fly
     Follow
@@ -76,10 +70,12 @@ type Image32
     as _long_  bpp
     as _long_  pitch
     as any ptr pixdata
+    as string label
     as _long_  w, h
     declare constructor        ()
-    declare constructor        (w as _long_, h as _long_)
-    declare function create    (w as _long_, h as _long_) as Image32
+    declare constructor        (w as _long_, h as _long_, label as string = "")
+    declare function create    (w as _long_, h as _long_, label as string = "") as Image32
+    declare function free      () as Image32
     declare function getPixel  (x as _long_, y as _long_) as ulong
     declare function getPixel  (x as double, y as double) as ulong
     declare function load      (filename as string) as Image32
@@ -88,12 +84,26 @@ type Image32
 end type
 constructor Image32
 end constructor
-constructor Image32(w as _long_, h as _long_)
-    this.create(w, h)
+constructor Image32(w as _long_, h as _long_, label as string)
+    this.create(w, h, label)
 end constructor
-function Image32.create(w as _long_, h as _long_) as Image32
+function Image32.create(w as _long_, h as _long_, label as string = "") as Image32
+    this.label = label
     this.buffer = imagecreate(w, h)
     return this.readInfo(this.buffer)
+end function
+function image32.free() as Image32
+    if this.buffer then
+        imagedestroy this.buffer
+    end if
+    this.buffer  = 0
+    this.bpp     = 0
+    this.pitch   = 0
+    this.pixdata = 0
+    this.label   = ""
+    this.w       = 0
+    this.h       = 0
+    return this
 end function
 function Image32.getPixel(x as _long_, y as _long_) as ulong
     dim as long ptr pixel = this.pixdata + this.pitch * y + x
@@ -112,7 +122,9 @@ function Image32.readInfo(imageBuffer as any ptr) as Image32
     return this
 end function
 function Image32.load(filename as string) as Image32
-    bload filename, this.buffer
+    if this.buffer then
+        bload filename, this.buffer
+    end if
     return this
 end function
 function Image32.plotPixel(x as _long_, y as _long_, colr as ulong) as Image32
@@ -124,20 +136,49 @@ function Image32.plotPixel(x as _long_, y as _long_, colr as ulong) as Image32
     return this
 end function
 
-declare sub init       (byref mouse as Mouse2, objects() as Object3, particles() as ParticleType)
-declare sub initScreen ()
-declare sub main       (byref mouse as Mouse2, objects() as Object3, particles() as ParticleType)
-declare sub shutdown   (byref mouse as Mouse2)
+enum GameFlags
+    RenderCursor = &h01
+    RenderRadar  = &h02
+    ResetMode    = &h04
+end enum
 
-declare sub handleFlyInput    (byref active as Object3, byref mouse as Mouse2, byref camera as CFrame3, byref world as CFrame3, deltaTime as double, resetMode as boolean = false)
-declare sub handleFollowInput (byref active as Object3, byref mouse as Mouse2, byref camera as CFrame3, byref world as CFrame3, deltaTime as double, resetMode as boolean = false)
-declare sub handleOrbitInput  (byref active as Object3, byref mouse as Mouse2, byref camera as CFrame3, byref world as CFrame3, deltaTime as double, resetMode as boolean = false)
+type GameStateType
+    as Object3 ptr    active
+    as CFrame3        camera
+    as integer        debugLevel
+    as double         deltaTime
+    as integer        flags
+    as double         fps
+    as Mouse2         mouse
+    as NavigationMode navMode
+    as Object3        objects(any)
+    as ParticleType   particles(any)
+    as CFrame3        world
+end type
+function hasflag(gameState as GameStateType, flag as integer) as boolean
+    return gameState.flags and flag
+end function
+sub setFlag(gameState as GameStateType, flag as integer)
+    gameState.flags = gameState.flags or flag
+end sub
+sub unsetFlag(gameState as GameStateType, flag as integer)
+    gameState.flags = (gameState.flags or flag) xor flag
+end sub
+
+declare sub init       (byref gameState as GameStateType)
+declare sub initScreen ()
+declare sub main       (byref gameState as GameStateType)
+declare sub shutdown   (byref gameState as GameStateType)
+
+declare sub handleFlyInput    (byref gameState as GameStateType)
+declare sub handleFollowInput (byref gameState as GameStateType)
+declare sub handleOrbitInput  (byref gameState as GameStateType)
 
 declare sub drawMouseCursor (byref mouse as Mouse2)
 declare sub drawReticle     (byref mouse as Mouse2, reticleColor as integer = &h808080, arrowColor as integer = &hd0b000)
 declare sub fpsUpdate       (byref fps as integer)
-declare sub printDebugInfo  (byval cframe as CFrame3)
-declare sub renderFrame     (byref camera as CFrame3, byref world as CFrame3, objects() as Object3, particles() as ParticleType)
-declare sub renderUI        (byref mouse as Mouse2, byref camera as CFrame3, byref world as CFrame3, navMode as NavigationMode, deltaTime as double)
+declare sub printDebugInfo  (byref gameState as GameStateType)
+declare sub renderFrame     (byref gameState as GameStateType)
+declare sub renderUI        (byref gameState as GameStateType)
 
 declare sub animateAsteroid(byref o as Object3, byref camera as CFrame3, byref world as CFrame3, deltaTime as double)

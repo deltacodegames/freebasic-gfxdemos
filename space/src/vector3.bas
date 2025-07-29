@@ -103,6 +103,9 @@ function rotate overload(a as Vector3, radians as double, axis as integer = 2) a
     end select
     return v
 end function
+function volume(a as Vector3, b as Vector3, c as Vector3) as double
+    return dot(a, cross(b, c))
+end function
 function Vector3.length() as double
     return magnitude(this)
 end function

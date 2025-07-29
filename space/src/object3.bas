@@ -49,8 +49,10 @@ end property
 '= METHOD
 '==============================================================================
 function Object3.loadFile(filename as string) as integer
+    dim as Vector3 vertexCollection(any)
+    dim as Vector3 normalCollection(any)
+    dim as Vector2 uvCollection(any)
     dim as string datum, pieces(any), subpieces(any), s, p
-    dim as boolean calcNormals = true
     dim as integer f = freefile
     open filename for input as #f
         while not eof(f)
@@ -63,20 +65,19 @@ function Object3.loadFile(filename as string) as integer
                         mesh.sid = pieces(i + 1)
                         continue while
                     case "v"
-                        mesh.addVertex(Vector3(_
+                        array_append(vertexCollection, type(_
                             val(pieces(1)),_
                             val(pieces(2)),_
                            -val(pieces(3)) _
                         ))
                     case "vn"
-                        calcNormals = false
-                        mesh.addNormal(Vector3(_
+                        array_append(normalCollection, type(_
                             val(pieces(1)),_
                             val(pieces(2)),_
                            -val(pieces(3)) _
                         ))
                     case "vt"
-                        mesh.addUV(Vector2(_
+                        array_append(uvCollection, type(_
                             val(pieces(1)),_
                             val(pieces(2)) _
                         ))
@@ -103,24 +104,17 @@ function Object3.loadFile(filename as string) as integer
                                 vertexId = val(pieces(1 + j)) - 1
                             end if
                             if vertexId > -1 then
-                                face.addVertexId(vertexId)
+                                face.addVertex(vertexCollection(vertexId))
                             end if
                             if uvId > -1 then
-                                face.addUvId(uvId)
+                                face.addUv(uvCollection(uvId))
                             end if
                             if normalId > -1 then
-                                face.normal = mesh.getNormal(normalId)
+                                face.autoCalcNormal = false
+                                face.normal = normalCollection(normalId)
                             end if
                             print
                         next j
-                        if calcNormals then
-                            dim as Vector3 vertexes(any)
-                            for j as integer = 0 to ubound(face.vertexIds)
-                                vertexId = face.vertexIds(j)
-                                array_append(vertexes, mesh.getVertex(vertexId))
-                            next j
-                            face.normal = Face3.calcNormal(vertexes())
-                        end if
                         mesh.addFace(face)
                     case else
                         continue while
@@ -133,22 +127,35 @@ function Object3.loadFile(filename as string) as integer
 end function
 function Object3.toWorld() as Object3
     dim as Object3 o = this
-    for i as integer = 0 to ubound(mesh.vertexes)
-        dim as Vector3 v = mesh.vertexes(i)
-        o.mesh.vertexes(i) = rightward * v.x + upward * v.y + forward * v.z + this.position
-    next i
+    dim as Face3 face
+    dim as Vector3 vertex
     for i as integer = 0 to ubound(mesh.faces)
-        dim as Vector3 n = mesh.faces(i).normal
-        o.mesh.faces(i).normal = rightward * n.x + upward * n.y + forward * n.z
+        face = mesh.faces(i)
+        o.mesh.faces(i).position += this.position
+        o.mesh.faces(i).normal _
+            = rightward * face.normal.x _
+            + upward    * face.normal.y _
+            + forward   * face.normal.z
+        for j as integer = 0 to ubound(face.vertexes)
+            vertex = face.vertexes(j)
+            o.mesh.faces(i).vertexes(j) _
+                = rightward * vertex.x _
+                + upward    * vertex.y _
+                + forward   * vertex.z _
+                + this.position
+        next j
     next i
     return o
 end function
-function Object3.vectorToLocal(a as Vector3) as Vector3
+function Object3.vectorToLocal(w as Vector3) as Vector3
     return Vector3(_
-        dot(rightward, a),_
-        dot(upward   , a),_
-        dot(forward  , a) _
+        dot(rightward, w),_
+        dot(upward   , w),_
+        dot(forward  , w) _
     )
+end function
+function Object3.vectorToWorld(l as Vector3) as Vector3
+    return rightward * l.x + upward * l.y + forward * l.z
 end function
 
 '==============================================================================

@@ -11,12 +11,6 @@
     arr(ubound(arr)) = value
 #endmacro
 
-#macro array_append_return(arr, value)
-    redim preserve arr(ubound(arr) + 1)
-    arr(ubound(arr)) = value
-    return arr(ubound(arr))
-#endmacro
-
 #macro keydown(scanCode, waitVar, codeBlock)
     if multikey(scanCode) and waitVar = -1 then
         waitVar = scanCode
@@ -26,10 +20,12 @@
     end if
 #endmacro
 
+declare function lerp(from as double, goal as double, a as double = 0.5) as double
+
 declare function getOrientationStats(camera as CFrame3) as string
 declare function getLocationStats(camera as CFrame3) as string
 declare function object_collection_add(filename as String, collection() as Object3) as Object3 ptr
 declare sub printSafe(row as integer, col as integer, text as string, bounds() as integer)
 declare sub printStringBlock(row as integer, col as integer, text as string, header as string = "", border as string = "", footer as string = "")
-declare function addObject(sid as string, objects() as Object3, filename as string = "") byref as Object3
-declare function getObjectBySid(sid as string, objects() as Object3) byref as Object3
+declare function addObject(sid as string, objects() as Object3, filename as string = "") as Object3 ptr
+declare function getObjectBySid(sid as string, objects() as Object3) as Object3 ptr
