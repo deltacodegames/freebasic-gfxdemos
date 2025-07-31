@@ -10,43 +10,105 @@
     arr(ubound(arr)) = value
 #endmacro
 
-#macro array_append_return_ubound(arr, value)
-    redim preserve arr(ubound(arr) + 1)
-    arr(ubound(arr)) = value
-    return ubound(arr)
-#endmacro
-
 function Mesh3.addFace(face as Face3) as Mesh3
     array_append(faces, face)
     faces(ubound(faces)).id = ubound(faces)
     return this
 end function
-'~ function Mesh3.getAverageTextureFaceColor() as integer
-    '~ dim as Mesh3 mesh = spaceship->mesh
-    '~ dim as Face3 face
-    '~ dim as Vector2 uv(2)
-    '~ dim as integer colr, r, g, b, n
-    '~ dim as double rsum, gsum, bsum
-    '~ for i as integer = 0 to ubound(mesh.faces)
-        '~ face = mesh.faces(i)
-        '~ uv(0) = mesh.getUv(face.uvIds(0))
-        '~ for j as integer = 1 to ubound(face.uvIds)-1
-            '~ uv(1) = mesh.getUv(face.uvIds(j))
-            '~ uv(2) = mesh.getUv(face.uvIds(j+1))
-            '~ for k as integer = 0 to ubound(uv)
-                '~ colr = uvToColor(uv(k).x, uv(k).y)
-                '~ rsum += rgb_r(colr)/255
-                '~ gsum += rgb_g(colr)/255
-                '~ bsum += rgb_b(colr)/255
-                '~ n += 1
-            '~ next k
-        '~ next j
-        '~ r = int(255*(rsum/n))
-        '~ g = int(255*(gsum/n))
-        '~ b = int(255*(bsum/n))
-        '~ spaceship->mesh.faces(i).colr = rgb(r, g, b)
-    '~ next i
-'~ end function
+function Mesh3.buildBsp() as Mesh3
+    dim as Face3 collection(any)
+    for i as integer = 0 to ubound(faces)
+        if ubound(faces(i).vertexes) >= 0 then
+            array_append(collection, faces(i))
+        end if
+        bspRoot = buildBsp(collection())
+    next i
+    return this
+end function
+function Mesh3.buildBsp(collection() as Face3) as BspNode3 ptr
+    dim as BspNode3 ptr node
+    dim as Face3 backs(any), fronts(any)
+    dim as Face3 face, behind, infront, splitter
+    dim as Vector3 average, backSum, frontSum, rootSum
+    dim as integer backIndex, frontIndex, splitterIndex
+
+    if ubound(collection) = -1 then return 0
+
+    for i as integer = 0 to ubound(collection)
+        face = collection(i)
+        rootSum += face.position
+    next i
+    average = rootSum / (ubound(collection) + 1)
+    
+    splitter = collection(0)
+    for i as integer = 1 to ubound(collection)
+        face = collection(i)
+        if (face.position - average).length < (splitter.position - average).length then
+            splitter = face
+            splitterIndex = i
+        end if
+    next i
+
+    node = new BspNode3
+    for i as integer = 0 to ubound(faces)
+        face = faces(i)
+        if splitter.normal = face.normal and splitter.position = face.position then
+            node->faceId = face.id
+            exit for
+        end if
+    next i
+    
+    node->normal   = splitter.normal
+    node->position = splitter.position
+    'this = this.splitMesh(node->normal, node->position)
+    for i as integer = 0 to ubound(collection)
+        face = collection(i)
+        if i <> splitterIndex then
+            if dot(splitter.normal, face.position - splitter.position) <= 0 then
+                array_append(backs, face)
+                backSum += face.position
+            else
+                array_append(fronts, face)
+                frontSum += face.position
+            end if
+        end if
+    next i
+
+    backIndex  = -1
+    frontIndex = -1
+
+    if ubound(backs) >= 0 then
+        average   = backSum / (ubound(backs) + 1)
+        behind    = backs(0)
+        backIndex = 0
+        for i as integer = 1 to ubound(backs)
+            face = backs(i)
+            if (face.position - average).length < (behind.position - average).length then
+                backIndex = i
+            end if
+        next i
+    end if
+    if ubound(fronts) >= 0 then
+        average    = frontSum / (ubound(fronts) + 1)
+        infront    = fronts(0)
+        frontIndex = 0
+        for i as integer = 1 to ubound(fronts)
+            face = fronts(i)
+            if (face.position - average).length < (infront.position - average).length then
+                frontIndex = i
+            end if
+        next i
+    end if
+
+    if backIndex >= 0 then
+        node->behind  = buildBsp(backs())
+    end if
+    if frontIndex >= 0 then
+        node->infront = buildBsp(fronts())
+    end if
+    
+    return node
+end function
 function Mesh3.centerGeometry() as Mesh3
     dim as Vector3 average, unique(any), vertex
     dim as Face3 face
@@ -80,139 +142,76 @@ function Mesh3.centerGeometry() as Mesh3
     end if
     return this
 end function
-function Mesh3.buildBsp() as Mesh3
-    dim as integer faceIds(any)
-    for i as integer = 0 to ubound(faces)
-        if ubound(faces(i).vertexes) >= 0 then
-            array_append(faceIds, faces(i).id)
-        end if
-        bspRoot = splitBsp(faceIds())
-    next i
+function Mesh3.deleteFaces() as Mesh3
+    erase faces
     return this
 end function
-function Mesh3.splitBsp(faceIds() as integer) as BspNode3 ptr
-    dim as BspNode3 ptr node
-    dim as Face3 face, behind, infront, nearest, splitter
-    dim as integer backId =- -1, frontId = -1, backs(any), fronts(any)
-    dim as Vector3 average, backSum, frontSum, rootSum
-
-    if ubound(faceIds) = -1 then return 0
-
-    node = new BspNode3
-    select case 1
-    case 0 '- average vertex point
-        for i as integer = 0 to ubound(faceIds)
-            face = getFace(faceIds(i))
-            rootSum += face.position
-        next i
-        average = rootSum / (ubound(faceIds) + 1)
-        
-        nearest = getFace(faceIds(0))
-        for i as integer = 1 to ubound(faceIds)
-            face = getFace(faceIds(i))
-            if (face.position - average).length < (nearest.position - average).length then
-                nearest = face
-            end if
-        next i
-    case 1 '- max area
-        dim as double compare, comparator
-        dim as Vector3 a, b, c
-        nearest = getFace(faceIds(0))
-        for i as integer = 0 to ubound(faceIds)
-            face = getFace(faceIds(i))
-            a = face.vertexes(0)
-            b = face.vertexes(1)
-            c = face.vertexes(2)
-            compare = cross(b - a, c - a).length
-            if compare > comparator then
-                comparator = compare
-                nearest = face
-            end if
-        next i
-    case 2 '- min area between average and normal
-        for i as integer = 0 to ubound(faceIds)
-            face = getFace(faceIds(i))
-            rootSum += face.position
-        next i
-        average = rootSum / (ubound(faceIds) + 1)
-        
-        dim as double compare, comparator
-        dim as Vector3 a, b, c
-        nearest = getFace(faceIds(0))
-        for i as integer = 0 to ubound(faceIds)
-            face = getFace(faceIds(i))
-            compare = cross(face.normal, average - face.position).length
-            if compare < comparator then
-                comparator = compare
-                nearest = face
-            end if
-        next i
-    end select
-    
-    node->faceId = nearest.id
-    splitter = getFace(nearest.id)
-    for i as integer = 0 to ubound(faceIds)
-        face = getFace(faceIds(i))
-        if face.id <> splitter.id then
-            if dot(splitter.normal, face.position - splitter.position) <= 0 then
-                array_append(backs, face.id)
-                backSum += face.position
-            else
-                array_append(fronts, face.id)
-                frontSum += face.position
-            end if
-        end if
-    next i
-
-    if ubound(backs) >= 0 then
-        average = backSum / (ubound(backs) + 1)
-        backId  = backs(0)
-        behind  = getFace(backId)
-        for i as integer = 1 to ubound(backs)
-            face = getFace(backs(i))
-            if (face.position - average).length < (behind.position - average).length then
-                backId = face.id
-            end if
-        next i
-    end if
-    if ubound(fronts) >= 0 then
-        average = frontSum / (ubound(fronts) + 1)
-        frontId = fronts(0)
-        infront = getFace(frontId)
-        for i as integer = 1 to ubound(fronts)
-            face = getFace(fronts(i))
-            if (face.position - average).length < (infront.position - average).length then
-                frontId = face.id
-            end if
-        next i
-    end if
-
-    if backId >= 0 then
-        node->behind  = splitBsp(backs())
-    end if
-    if frontId >= 0 then
-        node->infront = splitBsp(fronts())
-    end if
-    
-    return node
-end function
-function Mesh3.getFace(faceId as integer) as Face3
-if faceId > ubound(this.faces) then
-    print faceId
-    sleep
-    end
-end if
-    return this.faces(faceId)
+function Mesh3.getFaceById(id as integer) as Face3
+    return faces(id)
 end function
 function Mesh3.paintFaces(colr as integer) as Mesh3
     for i as integer = 0 to ubound(faces)
         faces(i).colr = colr
     next i
-    return Mesh3
+    return this
+end function
+function Mesh3.setFacesDoubleSided(doubleSided as boolean) as Mesh3
+    for i as integer = 0 to ubound(faces)
+        faces(i).doubleSided = doubleSided
+    next i
+    return this
+end function
+function Mesh3.splitMesh(splitterNormal as Vector3, splitterPosition as Vector3) as Mesh3
+
+    dim as Mesh3 newMesh
+    dim as Face3 face, newFace
+    dim as Vector3 a, b, c, normal, vertex
+    dim as double sidea, sideb
+    
+    newMesh = this
+    newMesh.sid = this.sid + "." + str((999999999-100000000)*rnd)
+    newMesh.deleteFaces()
+    
+    for i as integer = 0 to ubound(this.faces)
+        face = this.faces(i)
+        newFace = Face3()
+        newFace.normal = face.normal
+        for j as integer = 0 to 1
+            normal = iif(j = 0, splitterNormal, -splitterNormal)
+            for k as integer = 0 to ubound(face.vertexes)
+                if k < ubound(face.vertexes) then
+                    a = face.vertexes(k)
+                    b = face.vertexes(k+1)
+                else
+                    a = face.vertexes(k)
+                    b = face.vertexes(0)
+                end if
+                sidea = dot(normal, a - splitterPosition)
+                sideb = dot(normal, b - splitterPosition)
+                if sidea > 0 then
+                    newFace.addVertex(a)
+                    if sideb > 0 then
+                        newFace.addVertex(b)
+                    elseif sideb < 0 then
+                        c = a + (b - a) * sidea / (sidea + abs(sideb))
+                        newFace.addVertex(c)
+                    end if
+                elseif sideb > 0 then
+                    'c = b + (a - b) * sideb / (sideb + abs(sidea))
+                    'newFace.addVertex(c)
+                    newFace.addVertex(b)
+                end if
+            next k
+        next j
+        if ubound(newFace.vertexes) >= 2 then
+            newMesh.addFace(newFace)
+        end if
+    next i
+    return newMesh.buildBsp()
 end function
 function Mesh3.textureFaces(texture as any ptr) as Mesh3
     for i as integer = 0 to ubound(faces)
         faces(i).texture = texture
     next i
-    return Mesh3
+    return this
 end function

@@ -26,8 +26,11 @@
 #cmdline "-b src/mesh3.bas"
 #cmdline "-b src/object3.bas"
 #cmdline "-b src/colorspace.bas"
-#cmdline "-b src/particle.bas"
-#cmdline "-b src/helpers.bas"
+#cmdline "-b src/particle3.bas"
+#cmdline "-b src/screenmode.bas"
+#cmdline "-b src/image32.bas"
+#cmdline "-b gamesession.bas"
+#cmdline "-b helpers.bas"
 
 #include once "fbgfx.bi"
 #include once "mouse2.bi"
@@ -39,7 +42,10 @@
 #include once "mesh3.bi"
 #include once "object3.bi"
 #include once "colorspace.bi"
-#include once "particle.bi"
+#include once "particle3.bi"
+#include once "gamesession.bi"
+#include once "image32.bi"
+#include once "screenmode.bi"
 #include once "helpers.bi"
 #include once "defines.bi"
 #include once "main.bi"
@@ -59,71 +65,76 @@ const FIELD_SIZE = 9000
 '------------------------------------------------------------------------------
 ' SCREEN STUFF
 '------------------------------------------------------------------------------
-dim shared as ScreenMetaType ScreenMeta
-dim shared as integer RENDER_MODE = RenderMode.Textured
-dim shared as integer TEXTURE_QUALITY = 2 '- range: 0 to 4 (0 is best)
-dim shared as integer AUTO_TEXTURE_QUALITY = 1
+dim shared as ScreenModeType ScreenMode
 
-dim as GameStateType gameState
+dim as GameSession game
 
 '------------------------------------------------------------------------------
 ' THY HOLY TRINITY
 '------------------------------------------------------------------------------
-    init     gameState
-    main     gameState
-    shutdown gameState
+    init     game
+    main     game
+    shutdown game
 '------------------------------------------------------------------------------
 '------------------------------------------------------------------------------
 '------------------------------------------------------------------------------
 end
 
-sub init(byref gameState as GameStateType)
+sub init(byref game as GameSession)
 
     dim as Object3 ptr anchor, asteroid, spaceship
-    dim as Image32 image0, image1
+    dim as Image32 image
+    dim as any ptr buffer
+    dim as long colr, value
+    dim as long rc, gc, bc
+    dim as double a, b, u, v
+
+    game.renderMode  = RenderModes.Textured
+    game.textureMode = TextureModes.Auto
     
     randomize
     initScreen()
-    gameState.mouse.hide()
-    gameState.mouse.setMode(Mouse2Mode.Viewport)
+    game.mouse.hide()
+    game.mouse.setMode(Mouse2Mode.Viewport)
 
-    gameState.navMode = NavigationMode.Orbit
+    game.navMode = NavigationModes.Orbit
 
-    anchor    = addObject(   "anchor", gameState.objects())
-    asteroid  = addObject( "asteroid", gameState.objects(), "data/mesh/rocks.obj")
-    spaceship = addObject("spaceship", gameState.objects(), "data/mesh/spaceship3.obj")
+    anchor    = game.addObject("anchor")
+    asteroid  = game.addObject("asteroid", "data/mesh/rocks.obj")
+    spaceship = game.addObject("spaceship", "data/mesh/spaceship3.obj")
 
+    anchor->position = Vector3.Randomized() * 10
+    anchor->hidden   = true
+    
     asteroid->callback = @animateAsteroid
-    anchor->position   = Vector3(1, 1, 1) * 2 * pi
-    anchor->visible    = false
+    buffer = game.addTexture(64, 64, "data/mesh/textures/asteroid64.bmp")
+    if buffer then
+        asteroid->mesh.textureFaces(buffer)
+    end if
     
-    image0.create(64, 64)
-    image0.load("data/mesh/textures/asteroid64.bmp")
-    asteroid->mesh.textureFaces(image0.buffer)
-    
-    spaceship->mesh.doubleSided = true
-    image1.create(64, 64)
-    dim as double a, b, u, v
-    dim as long colr, value
-    dim as long ubr, ubg, ubb
-    for y as double = 0 to 63
-        for x as double = 0 to 63
-            a = x / 64
-            b = y / 64
-            u = sin(2*pi*a)
-            v = cos(2*pi*a)
-            colr  = ColorSpace2.SampleColor(Vector2(u, v)*(a+b), 2)
-            value = -32 + (int(x) xor int(y))*2
-            ubr = clamp(rgb_r(colr) + value, 0, 255)
-            ubg = clamp(rgb_g(colr) + value, 0, 255)
-            ubb = clamp(rgb_b(colr) + value, 0, 255)
-            colr = rgb(ubr, ubg, ubb)
-            image1.plotPixel(x, y, colr)
-        next x
-    next y
-    spaceship->mesh.textureFaces(image1.buffer)
+    spaceship->mesh.setFacesDoubleSided(true)
+    buffer = game.addTexture(64, 64)
+    if buffer then
+        image.readInfo(buffer)
+        for y as double = 0 to 63
+            for x as double = 0 to 63
+                a = x / 64
+                b = y / 64
+                u = sin(2*pi*a)
+                v = cos(2*pi*a)
+                colr  = ColorSpace2.SampleColor(Vector2(u, v)*(a+b), 2)
+                value = -32 + (int(x) xor int(y))*2
+                rc = clamp(rgb_r(colr) + value, 0, 255)
+                gc = clamp(rgb_g(colr) + value, 0, 255)
+                bc = clamp(rgb_b(colr) + value, 0, 255)
+                colr = rgb(rc, gc, bc)
+                image.plotPixel(x, y, colr)
+            next x
+        next y
+        spaceship->mesh.textureFaces(buffer)
+    end if
     for i as integer = 0 to NUM_PARTICLES-1
-        dim as ParticleType p = type(_
+        game.addParticle(_
             Vector3(_
                 FIELD_SIZE/2 * rnd*sin(2*pi*rnd),_
                 FIELD_SIZE/2 * rnd*sin(2*pi*rnd),_
@@ -131,28 +142,26 @@ sub init(byref gameState as GameStateType)
             ),_
             ColorSpace2.SampleColor(2*pi*rnd, rnd, 2)_
         )
-        array_append(gameState.particles, p)
     next i
 end sub
 
-sub shutdown(byref gameState as GameStateType)
-    gameState.mouse.Show()
+sub shutdown(byref game as GameSession)
+    game.mouse.Show()
 end sub
 
 sub initScreen()
-    ScreenMeta.readSettings()
-    ScreenMeta.flags = GFX_FULLSCREEN
-    ScreenMeta.pages = 2
-    if ScreenMeta.applySettings() then
+    ScreenMode.readSettings()
+    ScreenMode.flags = GFX_FULLSCREEN
+    ScreenMode.pages = 2
+    if ScreenMode.applySettings() then
         print "Failed to initialize graphics screen"
         sleep
         end
     end if
-    ScreenMeta.readSettings()
-    dim as double ratiow = ScreenMeta.ratiow
-    dim as double ratioh = ScreenMeta.ratioh
-    ScreenMeta.setView(-ratiow, 1, ratiow, -1)
-    ScreenMeta.applyView()
+    dim as double ratiow = ScreenMode.ratiow
+    dim as double ratioh = ScreenMode.ratioh
+    ScreenMode.setView(-ratiow, 1, ratiow, -1)
+    ScreenMode.applyView()
     screenset 1, 0
 end sub
 
@@ -170,7 +179,7 @@ end function
 '=======================================================================
 '= VIEW TRANSFORM
 '=======================================================================
-function worldToView(position as vector3, camera as CFrame3, skipTranslation as boolean = false) as Vector3
+function worldToView(byval position as Vector3, camera as CFrame3, skipTranslation as boolean = false) as Vector3
     if not skipTranslation then
         position -= camera.position
     end if
@@ -196,7 +205,7 @@ function viewToScreen(vp as vector3, fov as double = 1) as Vector2
 end function
 
 sub drawTexturedTri(a as Vector2, b as Vector2, c as Vector2, uva as Vector2, uvb as Vector2, uvc as Vector2, texture as Image32)
-    dim as _long_ bpp = ScreenMeta.bpp, pitch = ScreenMeta.pitch
+    dim as _long_ bpp = ScreenMode.bpp, pitch = ScreenMode.pitch
     dim as any ptr buffer, rowStart
     dim as ulong ptr pixel
     dim as Vector2 sideA, sideB, sideC
@@ -210,14 +219,14 @@ sub drawTexturedTri(a as Vector2, b as Vector2, c as Vector2, uva as Vector2, uv
     toplft.y = iif(a.y < b.y, iif(a.y < c.y, a.y, c.y), iif(b.y < c.y, b.y, c.y))
     btmrgt.x = iif(a.x > b.x, iif(a.x > c.x, a.x, c.x), iif(b.x > c.x, b.x, c.x))
     btmrgt.y = iif(a.y > b.y, iif(a.y > c.y, a.y, c.y), iif(b.y > c.y, b.y, c.y))
-    if toplft.x >= ScreenMeta.w then exit sub
-    if toplft.y >= ScreenMeta.h then exit sub
+    if toplft.x >= ScreenMode.w then exit sub
+    if toplft.y >= ScreenMode.h then exit sub
     if btmrgt.x < 0 then exit sub
     if btmrgt.y < 0 then exit sub
     if toplft.x < 0 then toplft.x = 0
     if toplft.y < 0 then toplft.y = 0
-    if btmrgt.x >= ScreenMeta.w then btmrgt.x = ScreenMeta.w-1
-    if btmrgt.y >= ScreenMeta.h then btmrgt.y = ScreenMeta.h-1
+    if btmrgt.x >= ScreenMode.w then btmrgt.x = ScreenMode.w-1
+    if btmrgt.y >= ScreenMode.h then btmrgt.y = ScreenMode.h-1
     bas = normalize(c-b): pro = a-b: sideA = b + bas * dot(pro, bas) - a
     bas = normalize(a-c): pro = b-c: sideB = c + bas * dot(pro, bas) - b
     bas = normalize(b-a): pro = c-a: sideC = a + bas * dot(pro, bas) - c
@@ -246,7 +255,7 @@ sub drawTexturedTri(a as Vector2, b as Vector2, c as Vector2, uva as Vector2, uv
     end if
 end sub
 sub drawTexturedTriLowQ(a as Vector2, b as Vector2, c as Vector2, uva as Vector2, uvb as Vector2, uvc as Vector2, texture as Image32, quality as integer = 0, skipAreaCheck as boolean = false)
-    dim as _long_ bpp = ScreenMeta.bpp, pitch = ScreenMeta.pitch
+    dim as _long_ bpp = ScreenMode.bpp, pitch = ScreenMode.pitch
     dim as _long_ imgPitch, imgBpp, imgw, imgh
     dim as any ptr buffer = screenptr, row, start
     dim as any ptr imgBuffer, imgRowStart, imgPixelStart
@@ -264,17 +273,17 @@ sub drawTexturedTriLowQ(a as Vector2, b as Vector2, c as Vector2, uva as Vector2
     toplft.y = iif(a.y < b.y, iif(a.y < c.y, a.y, c.y), iif(b.y < c.y, b.y, c.y))
     btmrgt.x = iif(a.x > b.x, iif(a.x > c.x, a.x, c.x), iif(b.x > c.x, b.x, c.x))
     btmrgt.y = iif(a.y > b.y, iif(a.y > c.y, a.y, c.y), iif(b.y > c.y, b.y, c.y))
-    if toplft.x >= ScreenMeta.w then exit sub
-    if toplft.y >= ScreenMeta.h then exit sub
+    if toplft.x >= ScreenMode.w then exit sub
+    if toplft.y >= ScreenMode.h then exit sub
     if btmrgt.x < 0 then exit sub
     if btmrgt.y < 0 then exit sub
     if toplft.x < 0 then toplft.x = 0
     if toplft.y < 0 then toplft.y = 0
-    if btmrgt.x >= ScreenMeta.w then btmrgt.x = ScreenMeta.w-1
-    if btmrgt.y >= ScreenMeta.h then btmrgt.y = ScreenMeta.h-1
+    if btmrgt.x >= ScreenMode.w then btmrgt.x = ScreenMode.w-1
+    if btmrgt.y >= ScreenMode.h then btmrgt.y = ScreenMode.h-1
     if skipAreaCheck = false then
         area = abs(int(toplft.x - btmrgt.x)) * abs(int(toplft.y - btmrgt.y))
-        screenArea = ScreenMeta.w * ScreenMeta.h
+        screenArea = ScreenMode.w * ScreenMode.h
         ratio = area / screenArea
         select case ratio
             case is > .125: quality = iif(quality < 3, 3, quality)
@@ -337,38 +346,63 @@ sub drawTexturedTriLowQ(a as Vector2, b as Vector2, c as Vector2, uva as Vector2
         imagedestroy(imgBuffer)
     end if
 end sub
-sub drawTriSolid(a as Vector2, b as Vector2, c as Vector2, colr as integer)
-    dim as double ab, ac, bc
-    dim as double abx, acx, bcx
-    dim as double bma0, cma0, cmb0
-    dim as double bma1, cma1, cmb1
-    dim as integer y0, y1, z0, z1
-    if a.y > b.y then swap a, b
-    if a.y > c.y then swap a, c
-    if b.y > c.y then swap b, c
+sub drawTriSolidTop(a as Vector2, b as Vector2, c as Vector2, colr as integer)
+    dim as double ab, ac
+    dim as double abx, acx
+    dim as integer y0, y1
     ab = a.x
     ac = a.x
-    bc = b.x
-    bma0 = b.x-a.x: cma0 = c.x-a.x: cmb0 = c.x-b.x
-    bma1 = b.y-a.y: cma1 = c.y-a.y: cmb1 = c.y-b.y
-    abx = bma0/bma1
-    acx = cma0/cma1
-    bcx = cmb0/cmb1
-    y0 = int(a.y): y1 = y0 + int(b.y-a.y)
-    z0 = int(b.y): z1 = z0 + int(c.y-b.y)
+    abx = (b.x - a.x) / (b.y - a.y)
+    acx = (c.x - a.x) / (c.y - a.y)
+    y0 = a.y
+    y1 = y0 + int(b.y - a.y)
     for i as integer = y0 to y1
         line (int(ab), i)-(int(ac), i), colr
         ab += abx
         ac += acx
     next i
-    ac -= acx
-    for i as integer = z0 to z1
-        line (int(bc), i)-(int(ac), i), colr
+end sub
+sub drawTriSolidBottom(a as Vector2, b as Vector2, c as Vector2, colr as integer)
+    dim as double ac, bc
+    dim as double acx, bcx
+    dim as integer y0, y1
+    ac = a.x
+    bc = b.x
+    acx = (c.x - a.x) / (c.y - a.y)
+    bcx = (c.x - b.x) / (c.y - b.y)
+    y0 = a.y
+    y1 = y0 + (c.y - a.y)
+    for i as integer = y0 to y1
+        line (int(ac), i)-(int(bc), i), colr
         ac += acx
         bc += bcx
     next i
 end sub
-sub renderFaceSolid(byref face as Face3, byref mesh as Mesh3, byref camera as CFrame3, byref world as CFrame3)
+sub drawTriSolid(a as Vector2, b as Vector2, c as Vector2, colr as integer)
+    dim as Vector2 d
+    if a.y > b.y then swap a, b
+    if a.y > c.y then swap a, c
+    if b.y > c.y then swap b, c
+    a = int(a)
+    b = int(b)
+    c = int(c)
+    if a.y < b.y and b.y < c.y then
+        d.x = a.x + (b.y - a.y) * (c.x - a.x) / (c.y - a.y)
+        d.y = b.y
+        drawTriSolidTop a, b, d, colr
+        drawTriSolidBottom b, d, c, colr
+    elseif a.y < b.y and b.y = c.y then
+        drawTriSolidTop a, b, c, colr
+    elseif a.y = b.y and b.y < c.y then
+        drawTriSolidBottom a, b, c, colr
+    else
+        if a.x < b.x then swap a, b
+        if a.x < c.x then swap a, c
+        if b.x < c.x then swap b, c
+        line(a.x, a.y)-(b.x, b.y), colr
+    end if
+end sub
+sub renderFaceSolid(byref face as Face3, byref camera as CFrame3, byref world as CFrame3)
     dim as Vector2 a, b, c, pixels(ubound(face.vertexes))
     dim as Vector3 viewNormal, viewVertex(ubound(face.vertexes))
     dim as Vector3 worldNormal, worldVertex
@@ -381,12 +415,6 @@ sub renderFaceSolid(byref face as Face3, byref mesh as Mesh3, byref camera as CF
             exit sub
         end if
     next i
-    if not mesh.doubleSided then
-        viewNormal = normalize(worldToView(face.normal, camera, true))
-        if dot(viewVertex(0), viewNormal) > 0 then
-            exit sub
-        end if
-    end if
     cr = rgb_r(face.colr)
     cg = rgb_g(face.colr)
     cb = rgb_b(face.colr)
@@ -407,17 +435,17 @@ sub renderFaceSolid(byref face as Face3, byref mesh as Mesh3, byref camera as CF
         a.x = pmap(a.x, 0): a.y = pmap(a.y, 1)
         b.x = pmap(b.x, 0): b.y = pmap(b.y, 1)
         c.x = pmap(c.x, 0): c.y = pmap(c.y, 1)
-        ScreenMeta.resetView()
+        ScreenMode.resetView()
         drawTriSolid(_
             Vector2(a.x, a.y),_
             Vector2(b.x, b.y),_
             Vector2(c.x, c.y),_
             colr _
         )
-        ScreenMeta.applyView()
+        ScreenMode.applyView()
     next i
 end sub
-sub renderFaceTextured(byref face as Face3, byref mesh as Mesh3, byref camera as CFrame3, byref world as CFrame3)
+sub renderFaceTextured(byref face as Face3, byref camera as CFrame3, byref world as CFrame3, quality as integer = -1)
     dim as Vector2 a, b, c, pixels(ubound(face.vertexes)), uvs(ubound(face.vertexes))
     dim as Vector3 viewNormal, viewVertex(ubound(face.vertexes))
     dim as Vector3 worldNormal, worldVertex
@@ -428,8 +456,8 @@ sub renderFaceTextured(byref face as Face3, byref mesh as Mesh3, byref camera as
     dim as long ubr, ubg, ubb
     dim as long value
     dim as double dist, dt
-    dim as integer q = TEXTURE_QUALITY
     dim as boolean skipAreaCheck
+    dim as integer q = quality
     
     for i as integer = 0 to ubound(face.vertexes)
         worldVertex   = face.vertexes(i)
@@ -438,15 +466,8 @@ sub renderFaceTextured(byref face as Face3, byref mesh as Mesh3, byref camera as
             exit sub
         end if
     next i
-    
-    if not mesh.doubleSided then
-        viewNormal = normalize(worldToView(face.normal, camera, true))
-        if dot(viewVertex(0), viewNormal) > 0 then
-            exit sub
-        end if
-    end if
 
-    if AUTO_TEXTURE_QUALITY then
+    if quality = -1 then
         dist = dot(camera.forward, face.position - camera.position)
         select case dist
             case is <  1.000: q = 5
@@ -499,7 +520,7 @@ sub renderFaceTextured(byref face as Face3, byref mesh as Mesh3, byref camera as
         a.x = pmap(a.x, 0): a.y = pmap(a.y, 1)
         b.x = pmap(b.x, 0): b.y = pmap(b.y, 1)
         c.x = pmap(c.x, 0): c.y = pmap(c.y, 1)
-        ScreenMeta.resetView()
+        ScreenMode.resetView()
         if q = 0 and skipAreaCheck = true then
             drawTexturedTri(_
                 Vector2(a.x, a.y),_
@@ -519,100 +540,259 @@ sub renderFaceTextured(byref face as Face3, byref mesh as Mesh3, byref camera as
                 skipAreaCheck _
             )
         end if
-        ScreenMeta.applyView()
+        ScreenMode.applyView()
     next i
-    shadedTexture.free()
+    'shadedTexture.free()
 end sub
-sub renderFaceWireframe(byref face as Face3, byref mesh as Mesh3, byref camera as CFrame3, byref world as CFrame3, colr as integer = &hd0d0d0, style as integer = &hffff)
+sub renderFaceWireframe(byref face as Face3, byref camera as CFrame3, byref world as CFrame3, wireColor as integer = &hffffff, vertexColor as integer = 0, normalColor as integer = 0)
     dim as Vector2 a, b, c, pixels(ubound(face.vertexes))
     dim as Vector3 viewVertex(ubound(face.vertexes))
-    dim as Vector3 worldVertex
-    for i as integer = 0 to ubound(face.vertexes)
-        worldVertex   = face.vertexes(i)
-        viewVertex(i) = worldToView(worldVertex, camera)
-        if viewVertex(i).z < 1 then
-            exit sub
+    dim as Vector3 normal, position, worldVertex
+    dim as integer style = &hffff
+    if wireColor <> 0 or vertexColor <> 0 then
+        for i as integer = 0 to ubound(face.vertexes)
+            worldVertex   = face.vertexes(i)
+            viewVertex(i) = worldToView(worldVertex, camera)
+            if viewVertex(i).z < 1 then
+                exit sub
+            end if
+        next i
+    end if
+    if face.doubleSided or normalColor <> 0 then
+        normal = normalize(worldToView(face.normal, camera, true))
+        position = worldToView(face.position, camera)
+        style = iif(dot(normal, position) < 0, &hffff, &hf0f0)
+    end if
+    if wireColor <> 0 or vertexColor <> 0 then
+        for i as integer = 0 to ubound(viewVertex)
+            pixels(i) = viewToScreen(viewVertex(i))
+        next i
+        for i as integer = 0 to ubound(pixels)
+            if i < ubound(pixels) then
+                a = pixels(i)
+                b = pixels(i+1)
+            else
+                a = pixels(i)
+                b = pixels(0)
+            end if
+            if wireColor then
+                line(a.x, a.y)-(b.x, b.y), wireColor, , style
+            end if
+            if vertexColor then
+                line(a.x-.005, a.y-.005)-step(.01, .01), vertexColor, b, style
+            end if
+        next i
+    end if
+    if normalColor then
+        if position.z > 1 and position.z + normal.z > 1 then
+            a = viewToScreen(position)
+            b = viewToScreen(position + normal)
+            line(a.x, a.y)-(b.x, b.y), normalColor, , style
+        end if
+    end if
+end sub
+sub selectionSort(keys() as integer, vals() as double)
+    dim as double max
+    dim as integer selected
+    for i as integer = 0 to ubound(vals)
+        max = vals(i)
+        selected = -1
+        for j as integer = i + 1 to ubound(vals)
+            if vals(j) > max then
+                max = vals(j)
+                selected = j
+            end if
+        next j
+        if selected > -1 then
+            swap keys(i), keys(selected)
+            swap vals(i), vals(selected)
         end if
     next i
-    for i as integer = 0 to ubound(viewVertex)
-        pixels(i) = viewToScreen(viewVertex(i))
-    next i
-    for i as integer = 0 to ubound(pixels)-1
-        a = pixels(i)
-        b = pixels(i+1)
-        line(a.x, a.y)-(b.x, b.y), colr, , style
-    next i
-    a = pixels(ubound(pixels))
-    b = pixels(0)
-    line(a.x, a.y)-(b.x, b.y), colr
 end sub
-sub renderBspFaces(node as BspNode3 ptr, byref mesh as Mesh3, byref camera as CFrame3, byref world as CFrame3)
+sub bottomUpMergeSort(keys() as integer, vals() as double)
+
+    dim as double v0(any), v1(any), vSorted(any)
+    dim as integer k0(any), k1(any), kSorted(any)
+    dim as integer i, j, k, ub0, ub1
+    
+    if ubound(vals) <= 0 then
+        exit sub
+    end if
+    
+    ub0 = ((ubound(vals)+1) \ 2) - 1
+    ub1 = ub0 + ((ubound(vals)+1) and 1)
+    redim v0(ub0)
+    redim k0(ub0)
+    redim v1(ub1)
+    redim k1(ub1)
+    
+    for i = 0 to ub0
+        v0(i) = vals(i)
+        k0(i) = keys(i)
+    next i
+    for i = 0 to ub1
+        v1(i) = vals(1+i+ub0)
+        k1(i) = keys(1+i+ub0)
+    next i
+    if ubound(v0) > 0 or ubound(v1) > 0 then
+        bottomUpMergeSort k0(), v0()
+        bottomUpMergeSort k1(), v1()
+    end if
+    
+    redim vSorted(ubound(vals))
+    redim kSorted(ubound(vals))
+    i = 0: j = 0: k = 0
+    while k <= ubound(vSorted)
+        if v0(i) > v1(j) then
+            vSorted(k) = v0(i)
+            kSorted(k) = k0(i)
+            i += 1
+        else
+            vSorted(k) = v1(j)
+            kSorted(k) = k1(j)
+            j += 1
+        end if
+        k += 1
+        if i > ubound(v0) or j > ubound(v1) then
+            exit while
+        end if
+    wend
+    if i <= ubound(v0) then
+        while i <= ubound(v0)
+            vSorted(k) = v0(i)
+            kSorted(k) = k0(i)
+            i += 1
+            k += 1
+        wend
+    elseif j <= ubound(v1) then
+        while j <= ubound(v1)
+            vSorted(k) = v1(j)
+            kSorted(k) = k1(j)
+            j += 1
+            k += 1
+        wend
+    end if
+    
+    for i as integer = 0 to ubound(vals)
+        vals(i) = vSorted(i)
+        keys(i) = kSorted(i)
+    next i
+end sub
+sub renderFaces(faces() as Face3, byref camera as CFrame3, byref world as CFrame3, renderMode as integer, textureMode as integer = -1)
+
+    dim as Face3 sorted(any)
+    dim as Vector3 normal, vertex
+    dim as double vals(any)
+    dim as integer keys(any)
+
+    if renderMode = RenderModes.Wireframe then
+        for i as integer = 0 to ubound(faces)
+            renderFaceWireframe faces(i), camera, world, &hb0b0b0
+        next i
+        exit sub
+    end if
+
+    for i as integer = 0 to ubound(faces)
+        vertex = worldToView(faces(i).position, camera)
+        if vertex.z > 0 then
+            if not faces(i).doubleSided then
+                normal = normalize(worldToView(faces(i).normal, camera, true))
+                if dot(normal, vertex) > 0 then
+                    continue for
+                end if
+            end if
+            array_append(keys, i)
+            array_append(vals, vertex.length)
+        end if
+    next i
+
+    bottomUpMergeSort keys(), vals()
+    for i as integer = 0 to ubound(keys)
+        array_append(sorted, faces(keys(i)))
+    next i
+    
+    select case renderMode
+    case RenderModes.Solid
+        for i as integer = 0 to ubound(sorted)
+            renderFaceSolid sorted(i), camera, world
+        next i
+    case RenderModes.Textured
+        for i as integer = 0 to ubound(sorted)
+            renderFaceTextured sorted(i), camera, world, textureMode
+        next i
+    end select
+end sub
+sub renderBspFaces(node as BspNode3 ptr, faces() as Face3, byref camera as CFrame3, byref world as CFrame3, renderMode as integer, textureMode as integer = -1)
     if node = 0 then exit sub
     dim as Vector3 normal, vertex, vewtex
     dim as Face3 face
-    dim as integer faceId = node->faceId
     dim as double dt
-    if faceId >= 0 then
-        face = mesh.getFace(faceId)
+    for i as integer = 0 to ubound(faces) '- todo: find more optimal solution
+        if faces(i).id = node->faceId then
+            face = faces(i)
+            exit for
+        end if
+    next i
+    if face.id = node->faceId then
         dt = dot(face.normal, camera.position - face.position)
         if dt > 0 then
-            renderBspFaces node->behind, mesh, camera, world
-            renderBspFaces node->infront, mesh, camera, world
+            renderBspFaces node->behind, faces(), camera, world, renderMode, textureMode
+            renderBspFaces node->infront, faces(), camera, world, renderMode, textureMode
         else
-            renderBspFaces node->infront, mesh, camera, world
-            renderBspFaces node->behind, mesh, camera, world
+            renderBspFaces node->infront, faces(), camera, world, renderMode, textureMode
+            renderBspFaces node->behind, faces(), camera, world, renderMode, textureMode
         end if
-        select case RENDER_MODE
-            case RenderMode.Solid   : renderFaceSolid face, mesh, camera, world
-            case RenderMode.Textured
+        select case renderMode
+            case RenderModes.Solid   : renderFaceSolid face, camera, world
+            case RenderModes.Textured
                 if ubound(face.uvs) >= 0 and face.texture <> 0 then
-                    renderFaceTextured face, mesh, camera, world
+                    renderFaceTextured face, camera, world, textureMode
                 else
-                    renderFaceSolid face, mesh, camera, world
+                    renderFaceSolid face, camera, world
                 end if
-            case RenderMode.Wireframe
+            case RenderModes.Wireframe
                 if dt > 0 then
-                    renderFaceWireframe face, mesh, camera, world
+                    renderFaceWireframe face, camera, world
                 else
-                    renderFaceWireframe face, mesh, camera, world, , &hc0c0
+                    renderFaceWireframe face, camera, world
                 end if
         end select
     end if
 end sub
-sub renderObjects(objects() as Object3, byref camera as CFrame3, byref world as CFrame3)
+sub renderObjects(objects() as Object3 ptr, byref camera as CFrame3, byref world as CFrame3, renderMode as integer, textureMdoe as integer = -1)
     dim as Object3 o
-    dim as Mesh3 mesh
     dim as Face3 face
     dim as Vector3 v
     dim as double dist
     for i as integer = 0 to ubound(objects)
-        o = objects(i).toWorld()
-        mesh = o.mesh
-        renderBspFaces mesh.bspRoot, mesh, camera, world
+        o = *objects(i)
+        o.toWorld()
+        renderFaces o.mesh.faces(), camera, world, renderMode, textureMdoe
+        'renderBspFaces o.mesh.faces(), mesh, camera, world, textureMdoe
     next i
 end sub
-sub renderParticles(particles() as ParticleType, byref camera as CFrame3)
-    dim as ParticleType particle
+sub renderParticles(particles() as Particle3 ptr, byref camera as CFrame3)
+    dim as Particle3 ptr particle
     dim as Vector2 coords
     dim as Vector3 vertex
     dim as double radius
     for i as integer = 0 to ubound(particles)
         particle = particles(i)
-        vertex = worldToView(particle.position, camera)
+        vertex = worldToView(particle->position, camera)
         if vertex.z > 1 then
             coords = viewToScreen(vertex)
             radius = abs(1/vertex.z) * 0.2
-            circle(coords.x, coords.y), radius, particle.getTwinkleColor()
+            circle(coords.x, coords.y), radius, particle->getTwinkleColor()
         end if
     next i
 end sub
-sub animateObjects(byref gameState as GameStateType)
-    for i as integer = 0 to ubound(gameState.objects)
-        dim byref o as Object3 = gameState.objects(i)
-        o.cframe *= CFrame3(o.linear * gameState.deltaTime, o.angular * gameState.deltaTime)
+sub animateObjects(byref game as GameSession)
+    for i as integer = 0 to ubound(game.objects)
+        dim byref o as Object3 = *game.objects(i)
         if o.callback then
-            o.callback(o, gameState.camera, gameState.world, gameState.deltaTime)
+            o.callback(o, game.camera, game.world, game.deltaTime)
         end if
+        o.cframe *= CFrame3(o.linear * game.deltaTime, o.angular * game.deltaTime)
     next i
 end sub
 
@@ -629,120 +809,120 @@ sub animateAsteroid(byref o as Object3, byref camera as CFrame3, byref world as 
     end if
 end sub
 
+sub setDebugLevel(level as integer, byref game as GameSession)
+
+    static as integer wireframeCycle
+    dim as integer flags = game.flags
+    
+    unsetFlag flags, DebugFlags.ShowAxes
+    unsetFlag flags, DebugFlags.ShowNormals
+    unsetFlag flags, DebugFlags.ShowVertexes
+
+    if level > 0 and game.debugLevel = 0 then
+        game.debugObject = game.activeObject
+    end if
+    
+    select case level
+        case 1
+            if level = game.debugLevel then level = 0
+        case 2
+            if level = game.debugLevel then level = 0
+        case 3
+            if level <> game.debugLevel then
+                wireframeCycle = 1
+            else
+                wireframeCycle += 1
+                if wireframeCycle = 4 then
+                    level = 0
+                end if
+            end if
+            select case wireframeCycle
+                case 1: setFlag flags, DebugFlags.ShowAxes
+                case 2: setFlag flags, DebugFlags.ShowVertexes
+                case 3: setFlag flags, DebugFlags.ShowNormals
+            end select
+        case 4
+            if level <> game.debugLevel then
+                setFlag flags, DebugFlags.ShowAxes
+            else
+                level = 0
+            end if
+    end select
+
+    select case level
+        case 0: game.renderMode = RenderModes.Textured
+        case 1: game.renderMode = RenderModes.Textured
+        case 2: game.renderMode = RenderModes.Solid
+        case 3: game.renderMode = RenderModes.Wireframe
+        case 4: game.renderMode = RenderModes.None
+    end select
+    
+    game.debugLevel = level
+    game.debugFlags = flags
+    
+end sub
+
 '==============================================================================
 '= START
 '==============================================================================
-sub main(gameState as GameStateType)
+sub main(game as GameSession)
 
+    dim as Object3 ptr activeObject, anchor, asteroid, spaceship
+
+    dim byref as NavigationModes navMode     = game.navMode
+    dim byref as RenderModes     renderMode  = game.renderMode
+    dim byref as TextureModes    textureMode = game.textureMode
+    dim byref as integer         debugLevel  = game.debugLevel
+    
     dim as double deltaTime, frameStartTime
     dim as integer keyWait = -1
-    
-    dim as Object3 ptr anchor    = getObjectBySid(   "anchor", gameState.objects())
-    dim as Object3 ptr asteroid  = getObjectBySid( "asteroid", gameState.objects())
-    dim as Object3 ptr spaceship = getObjectBySid("spaceship", gameState.objects())
-    
-    select case gameState.navMode
-        case NavigationMode.Fly   : gameState.active = anchor
-        case NavigationMode.Follow: gameState.active = spaceship
-        case NavigationMode.Orbit : gameState.active = spaceship
-    end select
-    dim as Object3 ptr active = gameState.active
 
-    setFlag(gameState, GameFlags.ResetMode)
+    anchor    = game.findObject(   "anchor")
+    asteroid  = game.findObject( "asteroid")
+    spaceship = game.findObject("spaceship")
+    
+    select case navMode
+        case NavigationModes.Fly   : game.activeObject = anchor
+        case NavigationModes.Follow: game.activeObject = spaceship
+        case NavigationModes.Orbit : game.activeObject = spaceship
+    end select
+    
+    activeObject = game.activeObject
     
     frameStartTime = timer
     while not multikey(SC_ESCAPE)
 
-        select case gameState.navMode
-            case NavigationMode.Fly   : handleFlyInput    gameState
-            case NavigationMode.Follow: handleFollowInput gameState
-            case NavigationMode.Orbit : handleOrbitInput  gameState
+        select case navMode
+            case NavigationModes.Fly   : handleFlyInput    game
+            case NavigationModes.Follow: handleFollowInput game
+            case NavigationModes.Orbit : handleOrbitInput  game
         end select
-        unsetFlag(gameState, GameFlags.ResetMode)
+        unsetFlag(game.flags, GameFlags.ResetMode)
 
-        animateObjects gameState
-        renderFrame    gameState
-        renderUI       gameState
-
-        keydown(SC_F2, keyWait, gameState.debugLevel = iif(gameState.debugLevel <> 1, 1, 0))
-        keydown(SC_F3, keyWait, gameState.debugLevel = iif(gameState.debugLevel <> 2, 2, 0))
-        keydown(SC_F4, keyWait, gameState.debugLevel = iif(gameState.debugLevel <> 3, 3, 0))
-
-        select case gameState.debugLevel
-            case 0
-                RENDER_MODE = RenderMode.Textured
-            case 1
-                RENDER_MODE = RenderMode.Solid
-            case 2
-                RENDER_MODE = RenderMode.Wireframe
-            case 3
-                RENDER_MODE = RenderMode.None
-        end select
-
-        if gameState.debugLevel > 0 then printDebugInfo gameState
-        if gameState.debugLevel > 1 then
-            ' draw axes
-            for i as integer = 0 to ubound(gameState.objects)
-                dim as Object3 o = gameState.objects(i)
-                dim as Vector3 p, v(2)
-                dim as Vector2 a, b
-                p = worldToView(o.position, gameState.camera)
-                if p.z > 1 then
-                    v(0) = worldToView(o.position + o.rightward * pi, gameState.camera)
-                    v(1) = worldToView(o.position + o.upward    * pi, gameState.camera)
-                    v(2) = worldToView(o.position + o.forward   * pi, gameState.camera)
-                    a = viewToScreen(p)
-                    for j as integer = 0 to ubound(v)
-                        if v(j).z > 0 then
-                            b = viewToScreen(v(j))
-                            line (a.x, a.y)-(b.x, b.y), iif(j = 0, &hff0000, iif(j = 1, &h00ff00, &h0000ff)), , &hcccc
-                            draw string (b.x, b.y), iif(j = 0, "X", iif(j = 1, "Y", "Z"))
-                        end if
-                    next j
-                    draw string (a.x, a.y), o.sid
-                end if
-            next i
+        animateObjects game
+        renderFrame    game
+        renderUI       game
+        
+        if debugLevel <> 0 then
+            printDebugInfo game
+            if hasFlag(game.debugFlags, DebugFlags.ShowAxes    ) then drawAxes     game
+            if hasFlag(game.debugFlags, DebugFlags.ShowVertexes) then drawVertexes game
+            if hasFlag(game.debugFlags, DebugFlags.ShowNormals ) then drawNormals  game
         end if
 
-        static as integer firstTime = 0'1
+        keydown(SC_F1, keyWait, setDebugLevel(1, game))
+        keydown(SC_F2, keyWait, setDebugLevel(2, game))
+        keydown(SC_F3, keyWait, setDebugLevel(3, game))
+        keydown(SC_F4, keyWait, setDebugLevel(4, game))
+        
+        static as integer firstTime = 0
+        '- docking station
         if firstTime then
             firstTime = 0
-            dim as Mesh3 newMesh, mesh = active->mesh
-            dim as Face3 face, newFace
-            dim as Vector3 a, b, normal, position, vertex '= type(.5,0,0)
-            dim as double sidea, sideb
-            normal = type(0,0,1).normalized()
-            newMesh.doubleSided = mesh.doubleSided
-            newMesh.sid         = mesh.sid + "." + str((999999999-100000000)*rnd)
-            
-            for i as integer = 0 to ubound(mesh.faces)
-                face = mesh.faces(i)
-                newFace = Face3()
-                newFace.normal = face.normal
-                for j as integer = 0 to ubound(face.vertexes)
-                    if j < ubound(face.vertexes) then
-                        a = face.vertexes(j) - position
-                        b = face.vertexes(j+1) - position
-                    else
-                        a = face.vertexes(j) - position
-                        b = face.vertexes(0) - position
-                    end if
-                    sidea = dot(normal, a)
-                    sideb = dot(normal, b)
-                    if sidea > 0 and sideb < 0 then
-                        b = a + (b - a) * sidea / (sidea + abs(sideb))
-                        face.addVertex(b + position)
-                    elseif sideb > 0 and sidea < 0 then
-                        b = a + (b - a) * sideb / (sideb + abs(sidea))
-                        face.addVertex(b + position)
-                    else
-                        face.addVertex(a + position)
-                    end if
-                next j
-                newMesh.addFace(newFace)
-            next i
-            newMesh.buildBsp()
-            active->mesh = newMesh
+            dim as Face3 face
+            face.normal   = type(0,0,1).normalized()
+            face.position = type(1,0,0)
+            activeObject->mesh = activeObject->mesh.splitMesh(face.normal, face.position)
             ' destroy old mesh (mainly texture memory)
         end if
         
@@ -751,53 +931,58 @@ sub main(gameState as GameStateType)
         deltaTime      = timer - frameStartTime
         frameStartTime = timer
 
-        gameState.deltaTime = deltaTime
-        gameState.mouse.update
+        game.deltaTime = deltaTime
+        game.mouse.update
 
-        if RENDER_MODE = RenderMode.Textured then
-            if multikey(SC_0) then TEXTURE_QUALITY = 0: AUTO_TEXTURE_QUALITY = 0
-            if multikey(SC_9) then TEXTURE_QUALITY = 1: AUTO_TEXTURE_QUALITY = 0
-            if multikey(SC_8) then TEXTURE_QUALITY = 2: AUTO_TEXTURE_QUALITY = 0
-            if multikey(SC_7) then TEXTURE_QUALITY = 3: AUTO_TEXTURE_QUALITY = 0
-            if multikey(SC_6) then TEXTURE_QUALITY = 4: AUTO_TEXTURE_QUALITY = 0
+        if renderMode = RenderModes.Textured then
+            if multikey(SC_0) then textureMode = 0
+            if multikey(SC_9) then textureMode = 1
+            if multikey(SC_8) then textureMode = 2
+            if multikey(SC_7) then textureMode = 3
+            if multikey(SC_6) then textureMode = 4
         end if
 
-        if multikey(SC_O) then active->cframe = CFrame3()
-        if multikey(SC_X) then active->cframe.orientation = Orientation3() * Vector3(pi/2, 0, 0)
-        if multikey(SC_Y) then active->cframe.orientation = Orientation3() * Vector3(0, pi/2, 0)
-        if multikey(SC_Z) then active->cframe.orientation = Orientation3() * Vector3(0, 0, pi/2)
+        if multikey(SC_O) then activeObject->cframe = CFrame3()
+        if multikey(SC_X) then activeObject->cframe.orientation = Orientation3() * Vector3(pi/2, 0, 0)
+        if multikey(SC_Y) then activeObject->cframe.orientation = Orientation3() * Vector3(0, pi/2, 0)
+        if multikey(SC_Z) then activeObject->cframe.orientation = Orientation3() * Vector3(0, 0, pi/2)
 
-        keydown(SC_1, keyWait, gameState.navMode = NavigationMode.Fly   : gameState.active = anchor   : setFlag(gameState, GameFlags.ResetMode))
-        keydown(SC_2, keyWait, gameState.navMode = NavigationMode.Follow: gameState.active = spaceship: setFlag(gameState, GameFlags.ResetMode))
-        keydown(SC_3, keyWait, gameState.navMode = NavigationMode.Orbit : gameState.active = spaceship: setFlag(gameState, GameFlags.ResetMode))
+        keydown(SC_1, keyWait, navMode = NavigationModes.Fly   : game.activeObject = anchor   : setFlag(game.flags, GameFlags.ResetMode))
+        keydown(SC_2, keyWait, navMode = NavigationModes.Follow: game.activeObject = spaceship: setFlag(game.flags, GameFlags.ResetMode))
+        keydown(SC_3, keyWait, navMode = NavigationModes.Orbit : game.activeObject = spaceship: setFlag(game.flags, GameFlags.ResetMode))
 
-        if multikey(SC_CONTROL) <> 0 or gameState.mouse.middleDown then
-            gameState.camera.lookAt(spaceship->position, spaceship->upward)
+        if multikey(SC_CONTROL) <> 0 or game.mouse.middleDown then
+            game.camera.lookAt(spaceship->position, spaceship->upward)
         end if
     wend
 end sub
 
-sub renderFrame(byref gameState as GameStateType)
-    dim as CFrame3 cam = gameState.camera
+sub renderFrame(byref game as GameSession)
+    dim as CFrame3 cam = game.camera
     if multikey(SC_BACKSPACE) then cam.orientation *= Vector3(0, rad(180), 0)
     cls
-    renderParticles(gameState.particles(), cam)
-    renderObjects(gameState.objects(), cam, gameState.world)
+    renderParticles(game.particles(), cam)
+    renderObjects(game.objects(), cam, game.world, game.renderMode, game.textureMode)
 end sub
 
-sub renderRadar(active as Object3 ptr, objects() as Object3)
+sub renderRadar(byref game as GameSession)
+
     static as boolean drawRadar = true
     static as integer keyWait = -1
+
+    dim as Object3 ptr o, active = game.activeObject
+    dim as Vector3 v
+
     keydown(SC_M, keyWait, drawRadar = not drawRadar)
     if drawRadar then
-        ScreenMeta.resetView
-        dim as integer w = ScreenMeta.w/10, h = (ScreenMeta.h*ScreenMeta.ratiow)/10, b = 1
+        ScreenMode.resetView
+        dim as integer w = ScreenMode.w/10, h = (ScreenMode.h*ScreenMode.ratiow)/10, b = 1
         dim as integer cx = w\2, cy = h\2
         dim as integer offsetx =  active->position.x mod 500
         dim as integer offsetz = -active->position.z mod 500
         offsetx \= 10
         offsetz \= 10
-        view (ScreenMeta.w-1-w, 1)-(ScreenMeta.w-2, h+1), &h112244, &hb0b0b0
+        view (ScreenMode.w-1-w, 1)-(ScreenMode.w-2, h+1), &h112244, &hb0b0b0
         window (-100, 100)-(100, -100)
         for y as integer = -100+offsetz to 100+offsetz step 50
             for x as integer = -100+offsetx to 100+offsetx step 50
@@ -805,30 +990,35 @@ sub renderRadar(active as Object3 ptr, objects() as Object3)
                 line(x, -y)-(x, y), &h405080
             next x
         next y
-        for i as integer = 0 to ubound(objects)
-            if @active = @objects(i) then continue for
-            if not objects(i).visible then continue for
-            dim as Object3 o = objects(i)
-            dim as Vector3 v = o.position - active->position
+        for i as integer = 0 to ubound(game.objects)
+            o = game.objects(i)
+            if o = active then continue for
+            if o->hidden then continue for
+            v = o->position
             v = active->vectorToLocal(v)
             v /= 10
-            circle (v.x, v.z + v.y), 3, &hffffff
-            'line (v.x, v.z)-(v.x, v.z + v.y*10), &hd0d0d0, , &h8888
+            circle (v.x, v.z), 3, &hffffff
+            drawTriSolid(_
+                Vector2(v.x, v.z + v.y),_
+                Vector2(v.x + 2, v.z - v.y),_
+                Vector2(v.x - 2, v.z - v.y),_
+                &hff0000 _
+            )
         next i
         line (-100, 0)-(100, 0), &h808080, , &hcccc
         line (0, -100)-(0, 100), &h808080, , &hcccc
         circle (0, 0), 3, &hffff00
         view
-        ScreenMeta.applyView
+        ScreenMode.applyView
     end if
 end sub
 
-sub renderUI(byref gameState as GameStateType)
-    renderRadar gameState.active, gameState.objects()
-    if gameState.navMode = NavigationMode.Fly then
-        drawReticle gameState.mouse
+sub renderUI(byref game as GameSession)
+    renderRadar game
+    if game.navMode = NavigationModes.Fly then
+        drawReticle game.mouse
     end if
-    drawMouseCursor gameState.mouse
+    drawMouseCursor game.mouse
 end sub
 
 sub drawReticle(byref mouse as Mouse2, reticleColor as integer = &h808080, arrowColor as integer = &hd0b000)
@@ -861,6 +1051,63 @@ sub drawReticle(byref mouse as Mouse2, reticleColor as integer = &h808080, arrow
     end if
 end sub
 
+sub drawAxes(byref game as GameSession)
+    dim as Object3 ptr o
+    dim as Vector3 p, v(2)
+    dim as Vector2 a, b
+    dim as integer colors(2) = {_
+        DebugColors.AxisX,_
+        DebugColors.AxisY,_
+        DebugColors.AxisZ _
+    }
+    for i as integer = 0 to ubound(game.objects)
+        o = game.objects(i)
+        p = worldToView(o->position, game.camera)
+        if p.z > 1 then
+            v(0) = worldToView(o->position + o->rightward * 2, game.camera)
+            v(1) = worldToView(o->position + o->upward    * 2, game.camera)
+            v(2) = worldToView(o->position + o->forward   * 2, game.camera)
+            a = viewToScreen(p)
+            for j as integer = 0 to ubound(v)
+                if v(j).z > 0 then
+                    b = viewToScreen(v(j))
+                    line (a.x, a.y)-(b.x, b.y), colors(j), , &hcccc
+                    draw string (b.x, b.y), iif(j = 0, "X", iif(j = 1, "Y", "Z"))
+                end if
+            next j
+            draw string (a.x, a.y), o->sid
+        end if
+    next i
+end sub
+
+sub drawNormals(byref game as GameSession)
+    dim as Object3 ptr debugObject = game.debugObject
+    dim as Face3 face
+    if debugObject then
+        for i as integer = 0 to ubound(debugObject->mesh.faces)
+            face = debugObject->mesh.faces(i)
+            face.normal = debugObject->vectorToWorld(face.normal)
+            face.position = debugObject->pointToWorld(face.position)
+            renderFaceWireframe face, game.camera, game.world, 0, , &hd00000
+        next i
+    end if
+end sub
+
+sub drawVertexes(byref game as GameSession)
+    dim as Object3 ptr debugObject = game.debugObject
+    dim as Face3 face
+    dim as Vector3 vertex
+    if debugObject then
+        for i as integer = 0 to ubound(debugObject->mesh.faces)
+            face = debugObject->mesh.faces(i)
+            for j as integer = 0 to ubound(face.vertexes)
+                face.vertexes(j) = debugObject->pointToWorld(face.vertexes(j))
+            next j
+            renderFaceWireframe face, game.camera, game.world, 0, &h00d000
+        next i
+    end if
+end sub
+
 sub drawMouseCursor(byref mouse as Mouse2)
     dim as ulong ants = &b11000011110000111100001111000011 shr int(frac(timer*1.5)*16)
     dim as Vector2 m = type(mouse.x, mouse.y)
@@ -887,31 +1134,31 @@ sub fpsUpdate (byref fps as integer)
 end sub
 
 
-sub printDebugInfo(byref gameState as GameStateType)
+sub printDebugInfo(byref game as GameSession)
 
-    if gameState.active then
-        printStringBlock( 1, 1, getOrientationStats(gameState.active->cframe), "ORIENTATION", "_", "")
-        printStringBlock(10, 1,    getLocationStats(gameState.active->cframe),    "LOCATION", "_", "")
+    if game.activeObject then
+        printStringBlock( 1, 1, getOrientationStats(game.activeObject->cframe), "ORIENTATION", "_", "")
+        printStringBlock(10, 1,    getLocationStats(game.activeObject->cframe),    "LOCATION", "_", "")
     end if
 
     dim as integer row = 15
     dim as string buffer = space(21)
-    select case RENDER_MODE
-        case RenderMode.Solid    : mid(buffer, 2) = "Solid"
-        case RenderMode.Textured : mid(buffer, 2) = "Texture"
-        case RenderMode.Wireframe: mid(buffer, 2) = "Wireframe"
+    select case game.renderMode
+        case RenderModes.Solid    : mid(buffer, 2) = "Solid"
+        case RenderModes.Textured : mid(buffer, 2) = "Texture"
+        case RenderModes.Wireframe: mid(buffer, 2) = "Wireframe"
     end select
     printStringBlock(row, 1, buffer, "RENDER MODE", "_", "")
 
-    if RENDER_MODE = RenderMode.Textured then
+    if game.renderMode = RenderModes.Textured then
         buffer = space(21)
-        if AUTO_TEXTURE_QUALITY then
+        if game.textureMode = TextureModes.Auto then
             mid(buffer,  2) = "Auto"
         else
-            select case AUTO_TEXTURE_QUALITY
-                case    0: mid(buffer,  2) = str(AUTO_TEXTURE_QUALITY+1) + " Best"
-                case    4: mid(buffer,  2) = str(AUTO_TEXTURE_QUALITY+1) + " Worst"
-                case else: mid(buffer,  2) = str(AUTO_TEXTURE_QUALITY+1)
+            select case game.textureMode
+                case    TextureModes.Best : mid(buffer,  2) = str(game.textureMode) + " Best"
+                case    TextureModes.Worst: mid(buffer,  2) = str(game.textureMode) + " Worst"
+                case else: mid(buffer,  2) = str(game.textureMode)
             end select
         end if
         row += 5
@@ -926,22 +1173,25 @@ sub printDebugInfo(byref gameState as GameStateType)
     printStringBlock(row, 1, buffer, "FPS", "_", "")
 end sub
 
-sub handleFlyInput(byref gameState as GameStateType)
+sub handleFlyInput(byref game as GameSession)
+
+    static as boolean firstTime = true
 
     dim as Vector3 angularGoal, linearGoal
     dim as double mx, my
 
-    dim byref as Mouse2 mouse   = gameState.mouse
-    dim byref as CFrame3 camera = gameState.camera
-    dim as Object3 ptr active   = gameState.active
-    dim as double deltaTime     = gameState.deltaTime
+    dim byref as Mouse2 mouse   = game.mouse
+    dim byref as CFrame3 camera = game.camera
+    dim as Object3 ptr active   = game.activeObject
+    dim as double deltaTime     = game.deltaTime
     
-    if hasFlag(gameState, GameFlags.ResetMode) then
+    if firstTime or hasFlag(game.flags, GameFlags.ResetMode) then
+        firstTime = false
         active->cframe = camera
     end if
 
     mx = mouse.x
-    my = mouse.y * ScreenMeta.ratiow
+    my = mouse.y * ScreenMode.ratiow
     mx *= 1.5
     my *= 1.5
 
@@ -979,15 +1229,16 @@ sub handleFlyInput(byref gameState as GameStateType)
     camera = active->cframe
 end sub
 
-sub handleFollowInput(byref gameState as GameStateType)
+sub handleFollowInput(byref game as GameSession)
 
     dim as Vector3 angularGoal, linearGoal, thrustGoal
     static as Vector3 thrust
+    static as boolean firstTime = true
 
-    dim byref as Mouse2 mouse   = gameState.mouse
-    dim byref as CFrame3 camera = gameState.camera
-    dim as Object3 ptr active   = gameState.active
-    dim as double deltaTime     = gameState.deltaTime
+    dim byref as Mouse2 mouse   = game.mouse
+    dim byref as CFrame3 camera = game.camera
+    dim as Object3 ptr active   = game.activeObject
+    dim as double deltaTime     = game.deltaTime
     
     static as integer keyWait = -1
     static as Vector3 distances(4) = {_
@@ -999,7 +1250,8 @@ sub handleFollowInput(byref gameState as GameStateType)
     }
     static as integer distanceId = 0
 
-    if hasFlag(gameState, GameFlags.ResetMode) then
+    if firstTime or hasFlag(game.flags, GameFlags.ResetMode) then
+        firstTime = false
         distanceId = 0
     end if
 
@@ -1061,16 +1313,18 @@ sub handleFollowInput(byref gameState as GameStateType)
     camera = lerpexp(camera, cameraGoal, deltaTime * sqr(1+sin(thrust.z/100)))
 end sub
 
-sub handleOrbitInput(byref gameState as GameStateType)
+sub handleOrbitInput(byref game as GameSession)
 
     static as Vector3 offset, upward
+    static as boolean firstTime = true
 
-    dim byref as Mouse2 mouse   = gameState.mouse
-    dim byref as CFrame3 camera = gameState.camera
-    dim as Object3 ptr active   = gameState.active
-    dim as double deltaTime     = gameState.deltaTime
+    dim byref as Mouse2 mouse   = game.mouse
+    dim byref as CFrame3 camera = game.camera
+    dim as Object3 ptr active   = game.activeObject
+    dim as double deltaTime     = game.deltaTime
 
-    if hasFlag(gameState, GameFlags.ResetMode) then
+    if firstTime or hasFlag(game.flags, GameFlags.ResetMode) then
+        firstTime = false
         active->angular = Vector3.Randomized()
         offset = Vector3.Randomized() * (15 + 30*rnd)
         camera.position = active->position + active->vectorToLocal(offset)

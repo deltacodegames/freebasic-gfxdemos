@@ -20,12 +20,12 @@
     end if
 #endmacro
 
+declare function hasflag(byref flags as integer, flag as integer) as boolean
+declare sub setFlag(byref flags as integer, flag as integer)
+declare sub unsetFlag(byref flags as integer, flag as integer)
+
 declare function lerp(from as double, goal as double, a as double = 0.5) as double
 
 declare function getOrientationStats(camera as CFrame3) as string
 declare function getLocationStats(camera as CFrame3) as string
-declare function object_collection_add(filename as String, collection() as Object3) as Object3 ptr
-declare sub printSafe(row as integer, col as integer, text as string, bounds() as integer)
 declare sub printStringBlock(row as integer, col as integer, text as string, header as string = "", border as string = "", footer as string = "")
-declare function addObject(sid as string, objects() as Object3, filename as string = "") as Object3 ptr
-declare function getObjectBySid(sid as string, objects() as Object3) as Object3 ptr

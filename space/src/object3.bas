@@ -122,32 +122,39 @@ function Object3.loadFile(filename as string) as integer
             next i
         wend
     close #1
-    mesh.buildBsp()
+    'mesh.buildBsp()
     return 0
 end function
+function Object3.pointToWorld(l as Vector3) as Vector3
+    return vectorToWorld(l) + position
+end function
 function Object3.toWorld() as Object3
-    dim as Object3 o = this
     dim as Face3 face
     dim as Vector3 vertex
     for i as integer = 0 to ubound(mesh.faces)
         face = mesh.faces(i)
-        o.mesh.faces(i).position += this.position
-        o.mesh.faces(i).normal _
+        mesh.faces(i).normal _
             = rightward * face.normal.x _
             + upward    * face.normal.y _
             + forward   * face.normal.z
+        mesh.faces(i).position _
+            = rightward * face.position.x _
+            + upward    * face.position.y _
+            + forward   * face.position.z _
+            + this.position
         for j as integer = 0 to ubound(face.vertexes)
             vertex = face.vertexes(j)
-            o.mesh.faces(i).vertexes(j) _
+            mesh.faces(i).vertexes(j) _
                 = rightward * vertex.x _
                 + upward    * vertex.y _
                 + forward   * vertex.z _
                 + this.position
         next j
     next i
-    return o
+    return this
 end function
-function Object3.vectorToLocal(w as Vector3) as Vector3
+function Object3.vectorToLocal(byval w as Vector3) as Vector3
+    w -= position
     return Vector3(_
         dot(rightward, w),_
         dot(upward   , w),_

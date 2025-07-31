@@ -9,6 +9,7 @@ type Face3
     id as integer
     autoCalcNormal as boolean = true
     colr as integer = rgb(128+92*rnd, 128+92*rnd, 128+92*rnd)
+    doubleSided as boolean = false
     position as Vector3
     normal as Vector3
     texture as any ptr
@@ -18,5 +19,4 @@ type Face3
     declare function addVertex(vertex as Vector3) as Face3
     declare function calcNormal() as Face3
     declare function calcPosition() as Face3
-    declare function refresh() as Face3
 end type

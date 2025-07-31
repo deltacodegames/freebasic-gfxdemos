@@ -15,19 +15,23 @@ function Face3.addUv(uv as Vector2) as Face3
 end function
 function Face3.addVertex(vertex as Vector3) as Face3
     array_append(vertexes, vertex)
-    refresh()
+    calcPosition()
+    if autoCalcNormal then
+        calcNormal()
+    end if
     return this
 end function
 function Face3.calcNormal() as Face3
     dim as Vector3 a, b, c, norm
-    dim as integer vertexCount = ubound(vertexes) + 1
+    dim as integer ub, vertexCount
+    ub = ubound(vertexes)
+    vertexCount = ub + 1
     if vertexCount = 3 then
-        a = vertexes(1)
-        b = vertexes(2)
-        c = vertexes(0)
-        norm = cross(a-c, b-c)
+        a = vertexes(0)
+        b = vertexes(1)
+        c = vertexes(2)
+        norm = cross(b-a, c-a)
     elseif vertexCount > 3 then
-        dim as integer ub = ubound(vertexes)
         for i as integer = 1 to ub - 1
             a = vertexes(0)
             b = vertexes(i)
@@ -46,12 +50,5 @@ function Face3.calcPosition() as Face3
         next i
         position = vertexSum / (ubound(vertexes) + 1)
     end if
-    return this
-end function
-function Face3.refresh() as Face3
-    if autoCalcNormal then
-        calcNormal()
-    end if
-    calcPosition()
     return this
 end function

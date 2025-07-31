@@ -2,7 +2,7 @@
 ' Copyright (c) 2025 Joe King
 ' See main file or LICENSE for license and build info.
 ' -----------------------------------------------------------------------------
-#include once "particle.bi"
+#include once "particle3.bi"
 
 #define pi 3.1415926535
 #define clamp(value, min, max) iif(value < min, min, iif(value > max, max, value))
@@ -10,15 +10,15 @@
 #define rgb_g(c) (c shr  8 and &hff)
 #define rgb_b(c) (c        and &hff)
 
-constructor ParticleType
+constructor Particle3
     randomizeTwinkle()
 end constructor
-constructor ParticleType (position as Vector3, colr as integer)
+constructor Particle3 (position as Vector3, colr as integer)
     this.position = position
     this.colr = colr
     randomizeTwinkle()
 end constructor
-function ParticleType.getTwinkleColor() as integer
+function Particle3.getTwinkleColor() as integer
     dim as integer r, g, b
     dim as double shift = _
     twinkleAmp * sin(2 * pi * frac(timer * twinkleFreq) + twinklePhase)
@@ -27,7 +27,7 @@ function ParticleType.getTwinkleColor() as integer
     b = clamp(rgb_b(colr) + int(shift), 0, 255)
     return rgb(r, g, b)
 end function
-sub ParticleType.randomizeTwinkle()
+sub Particle3.randomizeTwinkle()
     twinkleAmp   = rnd * 32
     twinkleFreq  = rnd * 1
     twinklePhase = rnd * 2 * pi

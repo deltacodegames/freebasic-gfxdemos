@@ -13,7 +13,7 @@ type Object3
     linear as Vector3
     mesh as Mesh3
     sid as string
-    visible as boolean = true
+    hidden as boolean = false
     declare constructor ()
     declare constructor (sid as string, filename as string = "")
     declare property position as Vector3
@@ -24,7 +24,8 @@ type Object3
     declare property rightward as Vector3
     declare property upward as Vector3
     declare function loadFile (filename as string) as integer
+    declare function pointToWorld(l as Vector3) as Vector3
     declare function toWorld() as Object3
-    declare function vectorToLocal(w as Vector3) as Vector3
+    declare function vectorToLocal(byval w as Vector3) as Vector3
     declare function vectorToWorld(l as Vector3) as Vector3
 end type

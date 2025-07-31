@@ -7,6 +7,16 @@
 
 #define format_decimal(f, p) iif(f >= 0, " ", "-") + str(abs(fix(f))) + "." + str(int(abs(frac(f)) * 10^p))
 
+function hasflag(byref flags as integer, flag as integer) as boolean
+    return flags and flag
+end function
+sub setFlag(byref flags as integer, flag as integer)
+    flags = flags or flag
+end sub
+sub unsetFlag(byref flags as integer, flag as integer)
+    flags = (flags or flag) xor flag
+end sub
+
 function lerp(from as double, goal as double, a as double = 0.5) as double
     return from + (goal - from) * a
 end function
@@ -46,23 +56,6 @@ function getLocationStats(camera as CFrame3) as string
     
     return body + row
 end function
-
-sub printSafe(row as integer, col as integer, text as string, bounds() as integer)
-    dim as integer clip0 = 1, clip1 = len(text)
-    if row >= bounds(0) and row <= bounds(2) then
-        if col+len(text) >= bounds(1) and col <= bounds(3) then
-            if col < bounds(1) then
-                clip0 += bounds(1) - col
-                clip1 -= bounds(1) - col
-            end if
-            if col + clip1 > bounds(3) then
-                clip1 -= (col + clip1) - bounds(3)
-            end if
-            locate row, col + (clip0 - 1)
-            print mid(text, clip0, clip1);
-        end if
-    end if
-end sub
 
 sub printStringBlock(row as integer, col as integer, text as string, header as string = "", border as string = "", footer as string = "")
     dim as integer i = 1, j, maxw
@@ -107,17 +100,3 @@ sub printStringBlock(row as integer, col as integer, text as string, header as s
         locate row, col: print string(maxw, footer);
     end if
 end sub
-
-function addObject(sid as string, objects() as Object3, filename as string = "") as Object3 ptr
-    dim as Object3 o = type(sid, filename)
-    array_append(objects, o)
-    return @objects(ubound(objects))
-end function
-
-function getObjectBySid(sid as string, objects() as Object3) as Object3 ptr
-    for i as integer = 0 to ubound(objects)
-        if objects(i).sid = sid then
-            return @objects(i)
-        end if
-    next i
-end function

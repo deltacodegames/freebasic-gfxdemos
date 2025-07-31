@@ -4,7 +4,7 @@
 ' -----------------------------------------------------------------------------
 #include once "vector3.bi"
 
-type ParticleType
+type Particle3
     colr as integer
     position as Vector3
     twinkleAmp as double
