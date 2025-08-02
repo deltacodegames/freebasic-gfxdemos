@@ -26,6 +26,5 @@ declare operator - (a as CFrame3, b as CFrame3) as CFrame3
 declare operator - (a as CFrame3, b as Vector3) as CFrame3
 declare operator * (a as CFrame3, b as CFrame3) as CFrame3
 declare operator * (a as CFrame3, b as Orientation3) as CFrame3
-declare operator * (a as CFrame3, b as Vector3) as CFrame3
 
 declare function lerp overload(from as CFrame3, goal as CFrame3, a as double = 0.5) as CFrame3

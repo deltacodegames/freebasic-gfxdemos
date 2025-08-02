@@ -24,7 +24,6 @@ type Vector3
     declare function rotated(radians as double, axis as integer = 2) as Vector3
 end type
 
-declare operator abs (a as Vector3) as Vector3
 declare operator int (a as Vector3) as Vector3
 declare operator = (a as Vector3, b as Vector3) as boolean
 declare operator <> (a as Vector3, b as Vector3) as boolean

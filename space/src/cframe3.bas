@@ -20,8 +20,8 @@ constructor CFrame3(position as Vector3, orientation as Orientation3)
     this.orientation = orientation
 end constructor
 constructor CFrame3(position as Vector3, axisRotations as Vector3)
-    this.position     = position
-    this.orientation *= axisRotations
+    this.position    = position
+    this.orientation = Orientation3(axisRotations)
 end constructor
 '==============================================================================
 '= OPERATOR
@@ -42,9 +42,6 @@ operator * (a as CFrame3, b as CFrame3) as CFrame3
     return CFrame3(a.position + b.position, a.orientation * b.orientation)
 end operator
 operator * (a as CFrame3, b as Orientation3) as CFrame3
-    return CFrame3(a.position, a.orientation * b)
-end operator
-operator * (a as CFrame3, b as Vector3) as CFrame3
     return CFrame3(a.position, a.orientation * b)
 end operator
 '==============================================================================

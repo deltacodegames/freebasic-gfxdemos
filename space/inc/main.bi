@@ -17,7 +17,7 @@ declare sub handleFollowInput (byref game as GameSession)
 declare sub handleOrbitInput  (byref game as GameSession)
 
 declare sub drawAxes        (byref game as GameSession)
-declare sub drawMouseCursor (byref mouse as Mouse2)
+declare sub drawMouseCursor (byref game as GameSession)
 declare sub drawNormals     (byref game as GameSession)
 declare sub drawReticle     (byref mouse as Mouse2, reticleColor as integer = &h808080, arrowColor as integer = &hd0b000)
 declare sub drawVertexes    (byref game as GameSession)

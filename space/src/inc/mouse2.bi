@@ -53,6 +53,8 @@ public:
     declare property deltaY         as double
     declare property dragX          as double
     declare property dragY          as double
+    declare property fromX          as double
+    declare property fromY          as double
     declare property leftClicked    as boolean
     declare property leftReleased   as boolean
     declare property leftDown       as boolean

@@ -15,6 +15,9 @@ constructor Orientation3(o0 as Vector3, o1 as Vector3, o2 as Vector3)
     this.matrix(1) = o1
     this.matrix(2) = o2
 end constructor
+constructor Orientation3(axisRotations as Vector3)
+    this = rotate(this, axisRotations)
+end constructor
 '===============================================================================
 '= OPERATOR
 '===============================================================================
@@ -25,7 +28,26 @@ operator * (a as Orientation3, b as Orientation3) as Orientation3
         dot(a.matrix(), b.matrix(2)) _
     )
 end operator
-operator * (a as Orientation3, axisRotations as Vector3) as Orientation3
+operator * (a as Orientation3, b as Vector3) as Vector3
+    return dot(a.matrix(), b)
+end operator
+'===============================================================================
+'= PROPERTY
+'===============================================================================
+property Orientation3.forward as Vector3  : return this.matrix(Axis3.Z): end property
+property Orientation3.rightward as Vector3: return this.matrix(Axis3.X): end property
+property Orientation3.upward as Vector3   : return this.matrix(Axis3.Y): end property
+'===============================================================================
+'= FUNCTION
+'===============================================================================
+function lerp overload(from as Orientation3, goal as Orientation3, a as double=0.5) as Orientation3
+    return type(_
+        lerp(from.matrix(0), goal.matrix(0), a),_
+        lerp(from.matrix(1), goal.matrix(1), a),_
+        lerp(from.matrix(2), goal.matrix(2), a) _
+    )
+end function
+function rotate overload(a as Orientation3, axisRotations as Vector3) as Orientation3
     dim as Vector3 x, y, z
     dim as double radians
     for i as integer = 0 to 2
@@ -53,28 +75,15 @@ operator * (a as Orientation3, axisRotations as Vector3) as Orientation3
         end if
     next i
     return a
-end operator
-'===============================================================================
-'= PROPERTY
-'===============================================================================
-property Orientation3.forward as Vector3  : return this.matrix(Axis3.Z): end property
-property Orientation3.rightward as Vector3: return this.matrix(Axis3.X): end property
-property Orientation3.upward as Vector3   : return this.matrix(Axis3.Y): end property
-'===============================================================================
-'= FUNCTION
-'===============================================================================
-function lerp overload(from as Orientation3, goal as Orientation3, a as double=0.5) as Orientation3
-    return type(_
-        lerp(from.matrix(0), goal.matrix(0), a),_
-        lerp(from.matrix(1), goal.matrix(1), a),_
-        lerp(from.matrix(2), goal.matrix(2), a) _
-    )
 end function
 '===============================================================================
 '= METHODS
 '===============================================================================
 function Orientation3.lerped(goal as Orientation3, a as double=0.5) as Orientation3
     return lerp(this, goal, a)
+end function
+function Orientation3.rotated(axisRotations as Vector3) as Orientation3
+    return rotate(this, axisRotations)
 end function
 function Orientation3.Look(direction as Vector3, worldUp as Vector3 = type(0, 1, 0)) as Orientation3
     dim as Vector3 x, y, z

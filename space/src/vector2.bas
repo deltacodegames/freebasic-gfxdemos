@@ -14,9 +14,6 @@ constructor Vector2(radians as double)
     this.x = cos(radians)
     this.y = sin(radians)
 end constructor
-operator abs (a as Vector2) as Vector2
-    return type(abs(a.x), abs(a.y))
-end operator
 operator int (a as Vector2) as Vector2
     return type(int(a.x), int(a.y))
 end operator

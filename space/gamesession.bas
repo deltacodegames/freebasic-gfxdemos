@@ -48,3 +48,20 @@ function GameSession.findObject(sid as string) as Object3 ptr
     next i
     return 0
 end function
+function GameSession.nextObject(fromObject as Object3 ptr) as Object3 ptr
+    for i as integer = 0 to ubound(objects)
+        if objects(i) = fromObject then
+            for j as integer = i+1 to ubound(objects)
+                if objects(j)->visible then
+                    return objects(j)
+                end if
+            next j
+            for j as integer = 0 to i-1
+                if objects(j)->visible then
+                    return objects(j)
+                end if
+            next j
+        end if
+    next i
+    return fromObject
+end function

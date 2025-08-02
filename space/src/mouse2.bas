@@ -9,6 +9,8 @@ property Mouse2.deltaX         as double : return _xDelta                       
 property Mouse2.deltaY         as double : return _yDelta                         : end property
 property Mouse2.dragX          as double : return _dragDeltaX                     : end property
 property Mouse2.dragY          as double : return _dragDeltaY                     : end property
+property Mouse2.fromX          as double : return _dragFromX                      : end property
+property Mouse2.fromY          as double : return _dragFromY                      : end property
 property Mouse2.leftClicked    as boolean: return _events(Mouse2Event.LeftDown)   : end property
 property Mouse2.leftReleased   as boolean: return _events(Mouse2Event.LeftUp)     : end property
 property Mouse2.leftDown       as boolean: return iif(buttons and 1, true, false) : end property
@@ -74,11 +76,11 @@ sub Mouse2.update()
                 _events(Mouse2Event.LeftDown) = iif(buttons and 1, true, false)
                 _events(Mouse2Event.LeftUp  ) = iif(buttons and 1, false, true)
             end if
-            if buttons and 4 <> _buttonsPrev and 2 then
+            if buttons and 2 <> _buttonsPrev and 2 then
                 _events(Mouse2Event.RightDown) = iif(buttons and 2, true, false)
                 _events(Mouse2Event.RightUp  ) = iif(buttons and 2, false, true)
             end if
-            if buttons and 2 <> _buttonsPrev and 4 then
+            if buttons and 4 <> _buttonsPrev and 4 then
                 _events(Mouse2Event.MiddleDown) = iif(buttons and 4, true, false)
                 _events(Mouse2Event.MiddleUp  ) = iif(buttons and 4, false, true)
             end if
@@ -118,10 +120,11 @@ sub Mouse2.update()
             _yDelta = 0
             _events(Mouse2Event.Move) = false
         end if
-        if leftClicked then
+        if leftClicked or rightClicked then
             _dragFromX = x
             _dragFromY = y
-        elseif leftDown or leftReleased then
+        elseif leftDown or leftReleased _
+            or rightDown or rightReleased then
             _dragDeltaX = x - _dragFromX
             _dragDeltaY = y - _dragFromY
         else

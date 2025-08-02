@@ -11,9 +11,6 @@ constructor Vector3(x as double, y as double, z as double)
     this.y = y
     this.z = z
 end constructor
-operator abs (a as Vector3) as Vector3
-    return type(abs(a.x), abs(a.y), abs(a.z))
-end operator
 operator int (a as Vector3) as Vector3
     return type(int(a.x), int(a.y), int(a.z))
 end operator

@@ -13,7 +13,7 @@ type Object3
     linear as Vector3
     mesh as Mesh3
     sid as string
-    hidden as boolean = false
+    visible as boolean = true
     declare constructor ()
     declare constructor (sid as string, filename as string = "")
     declare property position as Vector3

@@ -104,7 +104,7 @@ sub init(byref game as GameSession)
     spaceship = game.addObject("spaceship", "data/mesh/spaceship3.obj")
 
     anchor->position = Vector3.Randomized() * 10
-    anchor->hidden   = true
+    anchor->visible  = false
     
     asteroid->callback = @animateAsteroid
     buffer = game.addTexture(64, 64, "data/mesh/textures/asteroid64.bmp")
@@ -761,9 +761,14 @@ sub renderBspFaces(node as BspNode3 ptr, faces() as Face3, byref camera as CFram
 end sub
 sub renderObjects(objects() as Object3 ptr, byref camera as CFrame3, byref world as CFrame3, renderMode as integer, textureMdoe as integer = -1)
     dim as Object3 o
-    dim as Face3 face
-    dim as Vector3 v
-    dim as double dist
+    dim as integer keys(any)
+    dim as double vals(any)
+    for i as integer = 0 to ubound(objects)
+        if objects(i)->visible then
+            array_append(keys, i)
+            array_append(vals, objects(i)->position = camera.position)
+        end if
+    next i
     for i as integer = 0 to ubound(objects)
         o = *objects(i)
         o.toWorld()
@@ -943,9 +948,9 @@ sub main(game as GameSession)
         end if
 
         if multikey(SC_O) then activeObject->cframe = CFrame3()
-        if multikey(SC_X) then activeObject->cframe.orientation = Orientation3() * Vector3(pi/2, 0, 0)
-        if multikey(SC_Y) then activeObject->cframe.orientation = Orientation3() * Vector3(0, pi/2, 0)
-        if multikey(SC_Z) then activeObject->cframe.orientation = Orientation3() * Vector3(0, 0, pi/2)
+        if multikey(SC_X) then activeObject->cframe.orientation = Orientation3(Vector3(pi/2, 0, 0))
+        if multikey(SC_Y) then activeObject->cframe.orientation = Orientation3(Vector3(0, pi/2, 0))
+        if multikey(SC_Z) then activeObject->cframe.orientation = Orientation3(Vector3(0, 0, pi/2))
 
         keydown(SC_1, keyWait, navMode = NavigationModes.Fly   : game.activeObject = anchor   : setFlag(game.flags, GameFlags.ResetMode))
         keydown(SC_2, keyWait, navMode = NavigationModes.Follow: game.activeObject = spaceship: setFlag(game.flags, GameFlags.ResetMode))
@@ -959,7 +964,7 @@ end sub
 
 sub renderFrame(byref game as GameSession)
     dim as CFrame3 cam = game.camera
-    if multikey(SC_BACKSPACE) then cam.orientation *= Vector3(0, rad(180), 0)
+    if multikey(SC_BACKSPACE) then cam.orientation = cam.orientation.rotated(Vector3(0, rad(180), 0))
     cls
     renderParticles(game.particles(), cam)
     renderObjects(game.objects(), cam, game.world, game.renderMode, game.textureMode)
@@ -993,17 +998,12 @@ sub renderRadar(byref game as GameSession)
         for i as integer = 0 to ubound(game.objects)
             o = game.objects(i)
             if o = active then continue for
-            if o->hidden then continue for
-            v = o->position
-            v = active->vectorToLocal(v)
-            v /= 10
-            circle (v.x, v.z), 3, &hffffff
-            drawTriSolid(_
-                Vector2(v.x, v.z + v.y),_
-                Vector2(v.x + 2, v.z - v.y),_
-                Vector2(v.x - 2, v.z - v.y),_
-                &hff0000 _
-            )
+            if o->visible then
+                v = o->position
+                v = active->vectorToLocal(v)
+                v /= 10
+                circle (v.x, v.z + v.y), 3, &hffffff
+            end if
         next i
         line (-100, 0)-(100, 0), &h808080, , &hcccc
         line (0, -100)-(0, 100), &h808080, , &hcccc
@@ -1018,7 +1018,7 @@ sub renderUI(byref game as GameSession)
     if game.navMode = NavigationModes.Fly then
         drawReticle game.mouse
     end if
-    drawMouseCursor game.mouse
+    drawMouseCursor game
 end sub
 
 sub drawReticle(byref mouse as Mouse2, reticleColor as integer = &h808080, arrowColor as integer = &hd0b000)
@@ -1108,16 +1108,24 @@ sub drawVertexes(byref game as GameSession)
     end if
 end sub
 
-sub drawMouseCursor(byref mouse as Mouse2)
-    dim as ulong ants = &b11000011110000111100001111000011 shr int(frac(timer*1.5)*16)
-    dim as Vector2 m = type(mouse.x, mouse.y)
-    dim as Vector2 a = m, b
-    dim as double r = 0.076
-    b = Vector2(rad(-75))*r
+sub drawMouseCursor(byref game as GameSession)
+
+    dim byref as Mouse2 mouse = game.mouse
+    dim as Vector2 a, b, m = type(mouse.x, mouse.y)
+    dim as ulong ants = &hf0f0f0f0 shr int(frac(timer*1.5)*16)
+    
+    a = m
+    b = Vector2(rad(-75))*0.076
+    
     line(a.x, a.y)-step(b.x, b.y), &hf0f0f0, , ants
     b = b.rotated(rad(105))*0.8
     line -step(b.x, b.y), &hf0f0f0, , ants
     line -(a.x, a.y), &hf0f0f0, , ants
+    
+    if game.navMode = NavigationModes.Orbit and mouse.leftDown then
+        line (mouse.fromX, mouse.fromY)-(mouse.x, mouse.y), &he0e0e0, , ants
+    end if
+    
 end sub
 
 sub fpsUpdate (byref fps as integer)
@@ -1315,28 +1323,53 @@ end sub
 
 sub handleOrbitInput(byref game as GameSession)
 
-    static as Vector3 offset, upward
+    static as Vector3 angular, linear, offset, upward, zero = Vector3.Zero
+    static as integer keyWait   = -1
     static as boolean firstTime = true
 
     dim byref as Mouse2 mouse   = game.mouse
     dim byref as CFrame3 camera = game.camera
     dim as Object3 ptr active   = game.activeObject
     dim as double deltaTime     = game.deltaTime
+    dim as double distance
+    static as double x, y
 
+    if multikey(SC_TAB) and keyWait = -1 then
+        keyWait = SC_TAB
+        active = game.nextObject(active)
+        game.activeObject = active
+        game.debugObject  = active
+        firstTime = true
+    elseif not multikey(SC_TAB) and keyWait = SC_TAB then
+        keyWait = -1
+    end if
+    
     if firstTime or hasFlag(game.flags, GameFlags.ResetMode) then
         firstTime = false
         active->angular = Vector3.Randomized()
         offset = Vector3.Randomized() * (15 + 30*rnd)
-        camera.position = active->position + active->vectorToLocal(offset)
+        camera.position = active->position + active->vectorToWorld(offset)
         upward = Vector3.Randomized()
     end if
     
     camera.lookAt(active->position, upward)
+
+    distance = (active->position - camera.position).length
     if mouse.leftDown then
-        camera.position += camera.rightward * mouse.dragX * deltaTime * 30
-        camera.position += camera.upward * mouse.dragY * deltaTime * 30
+        if active->angular <> zero then angular = active->angular: active->angular = zero
+        if active->linear  <> zero then linear  = active->linear : active->linear  = zero
+        x = -mouse.dragX
+        camera.position += camera.rightward * x * distance * deltaTime
+        camera.position = active->position + normalize(camera.position - active->position) * distance
+        camera.lookAt(active->position, upward)
     else
-        camera.position -= camera.rightward * deltaTime * 3
+        if angular <> Vector3.Zero then active->angular = angular: angular = zero
+        if linear  <> Vector3.Zero then active->linear  = linear : linear  = zero
+        camera.position -= camera.rightward * deltaTime * distance / 3
+    end if
+
+    if mouse.wheelDelta then
+        camera.position += camera.forward * mouse.wheelDelta * distance / 20
     end if
     
 end sub

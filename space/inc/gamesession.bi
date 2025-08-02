@@ -69,4 +69,5 @@ type GameSession
     declare function addParticle(position as Vector3, colr as integer) as Particle3 ptr
     declare function addTexture(w as integer, h as integer, filename as string = "") as any ptr
     declare function findObject(sid as string) as Object3 ptr
+    declare function nextObject(fromObject as Object3 ptr) as Object3 ptr
 end type

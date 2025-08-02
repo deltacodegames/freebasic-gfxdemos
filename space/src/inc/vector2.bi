@@ -20,7 +20,6 @@ type Vector2
     declare function rotatedRight() as Vector2
 end type
 
-declare operator abs (a as Vector2) as Vector2
 declare operator int (a as Vector2) as Vector2
 declare operator = (a as Vector2, b as Vector2) as boolean
 declare operator <> (a as Vector2, b as Vector2) as boolean
