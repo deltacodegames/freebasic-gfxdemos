@@ -70,6 +70,11 @@ function Object3.loadFile(filename as string) as integer
                             val(pieces(2)),_
                            -val(pieces(3)) _
                         ))
+                        mesh.addVertex(type(_
+                            val(pieces(1)),_
+                            val(pieces(2)),_
+                           -val(pieces(3)) _
+                        ))
                     case "vn"
                         array_append(normalCollection, type(_
                             val(pieces(1)),_
@@ -110,7 +115,6 @@ function Object3.loadFile(filename as string) as integer
                                 face.addUv(uvCollection(uvId))
                             end if
                             if normalId > -1 then
-                                face.autoCalcNormal = false
                                 face.normal = normalCollection(normalId)
                             end if
                             print

@@ -16,9 +16,6 @@ end function
 function Face3.addVertex(vertex as Vector3) as Face3
     array_append(vertexes, vertex)
     calcPosition()
-    if autoCalcNormal then
-        calcNormal()
-    end if
     return this
 end function
 function Face3.calcNormal() as Face3

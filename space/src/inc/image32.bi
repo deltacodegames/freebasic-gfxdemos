@@ -15,16 +15,10 @@ type Image32
     as _long_  bpp
     as _long_  pitch
     as any ptr pixdata
-    as integer pixrange
-    as string label
     as _long_  w, h
-    declare constructor        ()
-    declare constructor        (w as _long_, h as _long_, label as string = "")
-    declare function create    (w as _long_, h as _long_, label as string = "") as Image32
-    declare function free      () as Image32
     declare function getPixel  (x as _long_, y as _long_) as ulong
     declare function getPixel  (x as double, y as double) as ulong
-    declare function load      (filename as string) as Image32
     declare function readInfo  (imageBuffer as any ptr) as Image32
-    declare function plotPixel (x as _long_, y as _long_, colr as ulong) as Image32
+    declare function resetInfo () as Image32
+    declare function putPixel  (x as _long_, y as _long_, colr as ulong) as Image32
 end type

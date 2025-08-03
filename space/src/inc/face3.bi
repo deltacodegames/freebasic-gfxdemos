@@ -6,13 +6,10 @@
 #include once "vector3.bi"
 
 type Face3
-    id as integer
-    autoCalcNormal as boolean = true
+    id as ushort
     colr as integer = rgb(128+92*rnd, 128+92*rnd, 128+92*rnd)
-    doubleSided as boolean = false
     position as Vector3
     normal as Vector3
-    texture as any ptr
     uvs(any) as Vector2
     vertexes(any) as Vector3
     declare function addUv(uv as Vector2) as Face3

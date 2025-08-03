@@ -11,3 +11,5 @@
 #define format_decimal(f, p) iif(f >= 0, " ", "-") + str(abs(fix(f))) + "." + str(int(abs(frac(f)) * 10^p))
 #define clamp(value, min, max) iif(value < min, min, iif(value > max, max, value))
 #define lerpexp(from, goal, a) lerp(from, goal, 1 - exp(-4.0 * a))
+#define foreach(arr, iter) for iter = lbound(arr) to ubound(arr)
+#define endforeach next

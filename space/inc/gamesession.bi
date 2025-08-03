@@ -44,11 +44,12 @@ end enum
 enum TextureModes
     Auto  = -1
     Best  = 0
-    Worst = 5
+    Worst = 7
 end enum
 
 type GameSession
     as Object3 ptr     activeObject
+    as integer         bgColor
     as CFrame3         camera
     as DebugFlags      debugFlags
     as integer         debugLevel
@@ -63,11 +64,16 @@ type GameSession
     as RenderModes     renderMode
     as TextureModes    textureMode
     as any ptr         textures(any)
+    as any ptr         shades(any, any)
+    const as integer   GeneratedShadesCount = 16
     as CFrame3         world
-    declare destructor()
     declare function addObject(sid as string, filename as string = "") as Object3 ptr
     declare function addParticle(position as Vector3, colr as integer) as Particle3 ptr
-    declare function addTexture(w as integer, h as integer, filename as string = "") as any ptr
+    declare function addTexture(w as integer, h as integer, filename as string = "") as integer
     declare function findObject(sid as string) as Object3 ptr
+    declare function free() as GameSession
+    declare function generateShades(textureIndex as integer) as GameSession
+    declare function getShade(textureIndex as integer, shadeIndex as integer = -1) as any ptr
+    declare function getTexture(index as integer) as any ptr
     declare function nextObject(fromObject as Object3 ptr) as Object3 ptr
 end type

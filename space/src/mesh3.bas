@@ -15,6 +15,14 @@ function Mesh3.addFace(face as Face3) as Mesh3
     faces(ubound(faces)).id = ubound(faces)
     return this
 end function
+function Mesh3.addVertex(vertex as Vector3) as Mesh3
+    array_append(vertexes, vertex)
+    return this
+end function
+function Mesh3.addTexture(texture as any ptr) as Mesh3
+    array_append(textures, texture)
+    return this
+end function
 function Mesh3.buildBsp() as Mesh3
     dim as Face3 collection(any)
     for i as integer = 0 to ubound(faces)
@@ -109,6 +117,12 @@ function Mesh3.buildBsp(collection() as Face3) as BspNode3 ptr
     
     return node
 end function
+function Mesh3.calcNormals() as Mesh3
+    for i as integer = 0 to ubound(faces)
+        faces(i).calcNormal()
+    next i
+    return this
+end function
 function Mesh3.centerGeometry() as Mesh3
     dim as Vector3 average, unique(any), vertex
     dim as Face3 face
@@ -146,8 +160,8 @@ function Mesh3.deleteFaces() as Mesh3
     erase faces
     return this
 end function
-function Mesh3.getFaceById(id as integer) as Face3
-    return faces(id)
+function Mesh3.getBounds(byref a as Vector3, byref b as Vector3) as Mesh3
+    return this
 end function
 function Mesh3.paintFaces(colr as integer) as Mesh3
     for i as integer = 0 to ubound(faces)
@@ -155,63 +169,54 @@ function Mesh3.paintFaces(colr as integer) as Mesh3
     next i
     return this
 end function
-function Mesh3.setFacesDoubleSided(doubleSided as boolean) as Mesh3
-    for i as integer = 0 to ubound(faces)
-        faces(i).doubleSided = doubleSided
-    next i
-    return this
-end function
-function Mesh3.splitMesh(splitterNormal as Vector3, splitterPosition as Vector3) as Mesh3
+function Mesh3.splitMesh(splitterNormal as Vector3, splitterPosition as Vector3) as Mesh3 ptr
 
-    dim as Mesh3 newMesh
-    dim as Face3 face, newFace
+    dim as Mesh3 ptr newMesh
+    dim as Face3 ptr copyFace, newFace
     dim as Vector3 a, b, c, normal, vertex
     dim as double sidea, sideb
-    
-    newMesh = this
-    newMesh.sid = this.sid + "." + str((999999999-100000000)*rnd)
-    newMesh.deleteFaces()
+
+    newMesh = new Mesh3()
+    newMesh->sid = this.sid + "." + str((999999999-100000000)*rnd)
     
     for i as integer = 0 to ubound(this.faces)
-        face = this.faces(i)
-        newFace = Face3()
-        newFace.normal = face.normal
-        for j as integer = 0 to 1
+        copyFace = @this.faces(i)
+        newFace  = new Face3()
+        newFace->normal = copyFace->normal
+        for j as integer = 0 to 0 '1
             normal = iif(j = 0, splitterNormal, -splitterNormal)
-            for k as integer = 0 to ubound(face.vertexes)
-                if k < ubound(face.vertexes) then
-                    a = face.vertexes(k)
-                    b = face.vertexes(k+1)
+            for k as integer = 0 to ubound(copyFace->vertexes)
+                if k < ubound(copyFace->vertexes) then
+                    a = copyFace->vertexes(k)
+                    b = copyFace->vertexes(k+1)
                 else
-                    a = face.vertexes(k)
-                    b = face.vertexes(0)
+                    a = copyFace->vertexes(k)
+                    b = copyFace->vertexes(0)
                 end if
                 sidea = dot(normal, a - splitterPosition)
                 sideb = dot(normal, b - splitterPosition)
                 if sidea > 0 then
-                    newFace.addVertex(a)
+                    newFace->addVertex(a)
+                    newFace->addUv(copyFace->uvs(k))
                     if sideb > 0 then
-                        newFace.addVertex(b)
+                        newFace->addVertex(b)
+                        newFace->addUv(copyFace->uvs(k))
                     elseif sideb < 0 then
                         c = a + (b - a) * sidea / (sidea + abs(sideb))
-                        newFace.addVertex(c)
+                        newFace->addVertex(c)
+                        newFace->addUv(copyFace->uvs(k))
                     end if
                 elseif sideb > 0 then
                     'c = b + (a - b) * sideb / (sideb + abs(sidea))
-                    'newFace.addVertex(c)
-                    newFace.addVertex(b)
+                    'newcopyFace->addVertex(c)
+                    newFace->addVertex(b)
+                    newFace->addUv(copyFace->uvs(k))
                 end if
             next k
         next j
-        if ubound(newFace.vertexes) >= 2 then
-            newMesh.addFace(newFace)
+        if ubound(newFace->vertexes) >= 2 then
+            newMesh->addFace(*newFace)
         end if
     next i
-    return newMesh.buildBsp()
-end function
-function Mesh3.textureFaces(texture as any ptr) as Mesh3
-    for i as integer = 0 to ubound(faces)
-        faces(i).texture = texture
-    next i
-    return this
+    return newMesh '.buildBsp()
 end function
