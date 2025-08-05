@@ -11,7 +11,7 @@
 
 function lerpColor (from as long, goal as long, ratio as double = 0.5) as ulong
     dim as ubyte r, g, b
-    ratio = iif(ratio < 0, ratio, iif(ratio > 1, 1, ratio))
+    ratio = iif(ratio < 0, 0, iif(ratio > 1, 1, ratio))
     r = rgb_r(from) + int((rgb_r(goal) - rgb_r(from)) * ratio)
     g = rgb_g(from) + int((rgb_g(goal) - rgb_g(from)) * ratio)
     b = rgb_b(from) + int((rgb_b(goal) - rgb_b(from)) * ratio)
@@ -96,12 +96,12 @@ function GameSession.free() as GameSession
     erase textures
     return this
 end function
-function GameSession.generateShades(textureIndex as integer) as GameSession
+function GameSession.generateShades(textureIndex as integer, darkest as double = 0.5, brightest as double = 1.5) as GameSession
     dim as any ptr texture
     dim as Image32 src, dest
     dim as double ratio
     dim as integer median
-    dim as ulong colr
+    dim as ulong colr, from, goal
 
     texture = getTexture(textureIndex)
     if texture then
@@ -117,13 +117,17 @@ function GameSession.generateShades(textureIndex as integer) as GameSession
                 for y as integer = 0 to src.h-1
                     for x as integer = 0 to src.w-1
                         colr = src.getPixel(x, y)
-                        ratio = (shadeIndex+1) / (ubound(shades, 2)+1)
+                        ratio = shadeIndex / ubound(shades, 2)
                         if ratio < 0.5 then
                             ratio = 2*ratio
-                            colr  = scaleColor(colr, 1/8+ratio*7/8)
+                            from  = colr
+                            goal  = scaleColor(colr, darkest)
+                            colr  = lerpColor(from, goal, 1-ratio)
                         else
                             ratio = 2*(ratio-0.5)
-                            colr  = scaleColor(colr, 1+ratio*7/8)
+                            from  = colr
+                            goal  = scaleColor(colr, brightest)
+                            colr  = lerpColor(from, goal, ratio)
                         end if
                         dest.putPixel x, y, colr
                     next x

@@ -72,7 +72,7 @@ type GameSession
     declare function addTexture(w as integer, h as integer, filename as string = "") as integer
     declare function findObject(sid as string) as Object3 ptr
     declare function free() as GameSession
-    declare function generateShades(textureIndex as integer) as GameSession
+    declare function generateShades(textureIndex as integer, darkest as double = 0.5, brightest as double = 1.5) as GameSession
     declare function getShade(textureIndex as integer, shadeIndex as integer = -1) as any ptr
     declare function getTexture(index as integer) as any ptr
     declare function nextObject(fromObject as Object3 ptr) as Object3 ptr
