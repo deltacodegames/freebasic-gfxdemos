@@ -292,7 +292,7 @@ sub renderFaceTextured(byref face as Face3, byref camera as CFrame3, byref world
     end if
     
     if ubound(textures) < 0 then exit sub
-    dt = dot(face.normal, world.upward): dt = clamp(dt, 0, 1)
+    dt = dot(face.normal, world.upward): dt = clamp(dt, -1, 1)
     texture = textures(int((0.5 + dt * 0.5) * ubound(textures)))
     if texture = 0 then exit sub
     
