@@ -29,6 +29,17 @@ function incrementColor (colr as ulong, inc as long) as ulong
     return rgb(r, g, b)
 end function
 
+function scaleColor (colr as long, factor as double) as ulong
+    dim as long r, g, b
+    r = int(rgb_r(colr) * factor)
+    g = int(rgb_g(colr) * factor)
+    b = int(rgb_b(colr) * factor)
+    r = iif(r < 0, 0, iif(r > 255, 255, r))
+    g = iif(g < 0, 0, iif(g > 255, 255, g))
+    b = iif(b < 0, 0, iif(b > 255, 255, b))
+    return rgb(r, g, b)
+end function
+
 function GameSession.addObject(sid as string, filename as string = "") as Object3 ptr
     dim as integer ub = ubound(objects) + 1
     redim preserve objects(ub)
@@ -106,12 +117,13 @@ function GameSession.generateShades(textureIndex as integer) as GameSession
                 for y as integer = 0 to src.h-1
                     for x as integer = 0 to src.w-1
                         colr = src.getPixel(x, y)
-                        if shadeIndex <= median then
-                            ratio = (median - shadeIndex) / median
-                            colr = incrementColor(colr, -80 * ratio)
+                        ratio = (shadeIndex+1) / (ubound(shades, 2)+1)
+                        if ratio < 0.5 then
+                            ratio = 2*ratio
+                            colr  = scaleColor(colr, 1/8+ratio*7/8)
                         else
-                            ratio = (shadeIndex - median) / (median + 1)
-                            colr = incrementColor(colr,  80 * ratio)
+                            ratio = 2*(ratio-0.5)
+                            colr  = scaleColor(colr, 1+ratio*7/8)
                         end if
                         dest.putPixel x, y, colr
                     next x
