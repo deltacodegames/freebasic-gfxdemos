@@ -5,8 +5,7 @@
 #include once "rasterizer.bi"
 #include once "image32.bi"
 
-declare sub drawTriSolidBottom(a as Vector2, b as Vector2, c as Vector2, colr as integer)
-declare sub drawTriSolidTop(a as Vector2, b as Vector2, c as Vector2, colr as integer)
+declare sub drawFlatTrapezoid(a as Vector2, b as Vector2, c as Vector2, d as Vector2, colr as integer)
 
 function Rasterizer.addBuffer(w as integer, h as integer, bpp as integer, pitch as integer, pixdata as any ptr = 0) as integer
     dim as integer ub
@@ -71,7 +70,7 @@ sub Rasterizer.shutdown()
     next i
     erase buffers
 end sub
-sub Rasterizer.drawTriSolid(a as Vector2, b as Vector2, c as Vector2, colr as integer)
+sub Rasterizer.drawFlatTri(a as Vector2, b as Vector2, c as Vector2, colr as integer)
     dim as Vector2 d
     if a.y > b.y then swap a, b
     if a.y > c.y then swap a, c
@@ -82,12 +81,12 @@ sub Rasterizer.drawTriSolid(a as Vector2, b as Vector2, c as Vector2, colr as in
     if a.y < b.y and b.y < c.y then
         d.x = a.x + (b.y - a.y) * (c.x - a.x) / (c.y - a.y)
         d.y = b.y
-        drawTriSolidTop a, b, d, colr
-        drawTriSolidBottom b, d, c, colr
+        drawFlatTrapezoid a, a, b, d, colr
+        drawFlatTrapezoid b, d, c, c, colr
     elseif a.y < b.y and b.y = c.y then
-        drawTriSolidTop a, b, c, colr
+        drawFlatTrapezoid a, a, b, c, colr
     elseif a.y = b.y and b.y < c.y then
-        drawTriSolidBottom a, b, c, colr
+        drawFlatTrapezoid a, b, c, c, colr
     else
         if a.x < b.x then swap a, b
         if a.x < c.x then swap a, c
@@ -215,35 +214,19 @@ end sub
 '==============================================================================
 '= PRIVATE SUBS
 '==============================================================================
-private sub drawTriSolidBottom(a as Vector2, b as Vector2, c as Vector2, colr as integer)
-    dim as double ac, bc
-    dim as double acx, bcx
+private sub drawFlatTrapezoid(a as Vector2, b as Vector2, c as Vector2, d as Vector2, colr as integer)
+    dim as double ac, bd
+    dim as double acx, bdx
     dim as integer y0, y1
     ac = a.x
-    bc = b.x
+    bd = b.x
     acx = (c.x - a.x) / (c.y - a.y)
-    bcx = (c.x - b.x) / (c.y - b.y)
+    bdx = (d.x - b.x) / (d.y - b.y)
     y0 = a.y
     y1 = y0 + (c.y - a.y)
     for i as integer = y0 to y1
-        line (int(ac), i)-(int(bc), i), colr
+        line (int(ac), i)-(int(bd), i), colr
         ac += acx
-        bc += bcx
-    next i
-end sub
-private sub drawTriSolidTop(a as Vector2, b as Vector2, c as Vector2, colr as integer)
-    dim as double ab, ac
-    dim as double abx, acx
-    dim as integer y0, y1
-    ab = a.x
-    ac = a.x
-    abx = (b.x - a.x) / (b.y - a.y)
-    acx = (c.x - a.x) / (c.y - a.y)
-    y0 = a.y
-    y1 = y0 + int(b.y - a.y)
-    for i as integer = y0 to y1
-        line (int(ab), i)-(int(ac), i), colr
-        ab += abx
-        ac += acx
+        bd += bdx
     next i
 end sub

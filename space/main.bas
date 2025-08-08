@@ -250,7 +250,7 @@ sub renderFaceSolid(byref face as Face3, byref camera as CFrame3, byref world as
         b.x = pmap(b.x, 0): b.y = pmap(b.y, 1)
         c.x = pmap(c.x, 0): c.y = pmap(c.y, 1)
         ScreenMode.resetView()
-        Rasterizer.drawTriSolid(_
+        Rasterizer.drawFlatTri(_
             Vector2(a.x, a.y),_
             Vector2(b.x, b.y),_
             Vector2(c.x, c.y),_

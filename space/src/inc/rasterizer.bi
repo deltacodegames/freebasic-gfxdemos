@@ -29,7 +29,7 @@ namespace Rasterizer
     declare function addBuffer(w as integer, h as integer, bpp as integer, pitch as integer, pixdata as any ptr = 0) as integer
     declare function getBuffer(index as integer) as Buffer2 ptr
     declare function init() as integer
-    declare      sub drawTriSolid(a as Vector2, b as Vector2, c as Vector2, colr as integer)
+    declare      sub drawFlatTri(a as Vector2, b as Vector2, c as Vector2, colr as integer)
     declare      sub drawTexturedTri(a as Vector2, b as Vector2, c as Vector2, uva as Vector2, uvb as Vector2, uvc as Vector2, texture as any ptr)
     declare      sub drawTexturedTriLowQ(a as Vector2, b as Vector2, c as Vector2, uva as Vector2, uvb as Vector2, uvc as Vector2, texture as any ptr, quality as integer = 0)
     declare function setBuffer(index as integer) as integer
