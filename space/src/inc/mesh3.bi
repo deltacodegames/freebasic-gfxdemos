@@ -14,6 +14,8 @@ type Mesh3
     sid as string
     textures(any) as any ptr
     vertexes(any) as Vector3
+    declare constructor ()
+    declare constructor (sid as string)
     declare function addFace(face as Face3) as Mesh3
     declare function addVertex(vertex as Vector3) as Mesh3
     declare function addTexture(texture as any ptr) as Mesh3

@@ -9,17 +9,14 @@
     arr(ubound(arr)) = value
 #endmacro
 
-declare sub string_split(subject as string, delim as string, pieces() as string)
 '==============================================================================
 '= CONSTRUCTOR
 '==============================================================================
 constructor Object3
 end constructor
-constructor Object3(sid as string, filename as string = "")
+constructor Object3(sid as string, mesh as Mesh3 ptr = 0)
     this.sid = sid
-    if filename <> "" then
-        this.loadFile(filename)
-    end if
+    this.mesh = mesh
 end constructor
 '==============================================================================
 '= PROPERTY
@@ -48,114 +45,37 @@ end property
 '==============================================================================
 '= METHOD
 '==============================================================================
-function Object3.loadFile(filename as string) as integer
-    dim as Vector3 vertexCollection(any)
-    dim as Vector3 normalCollection(any)
-    dim as Vector2 uvCollection(any)
-    dim as string datum, pieces(any), subpieces(any), s, p
-    dim as integer f = freefile
-    open filename for input as #f
-        while not eof(f)
-            line input #f, s
-            string_split(s, " ", pieces())
-            for i as integer = 0 to ubound(pieces)
-                dim as string datum = pieces(i)
-                select case datum
-                    case "o"
-                        mesh.sid = pieces(i + 1)
-                        continue while
-                    case "v"
-                        array_append(vertexCollection, type(_
-                            val(pieces(1)),_
-                            val(pieces(2)),_
-                           -val(pieces(3)) _
-                        ))
-                        mesh.addVertex(type(_
-                            val(pieces(1)),_
-                            val(pieces(2)),_
-                           -val(pieces(3)) _
-                        ))
-                    case "vn"
-                        array_append(normalCollection, type(_
-                            val(pieces(1)),_
-                            val(pieces(2)),_
-                           -val(pieces(3)) _
-                        ))
-                    case "vt"
-                        array_append(uvCollection, type(_
-                            val(pieces(1)),_
-                            val(pieces(2)) _
-                        ))
-                    case "f"
-                        dim as integer normalId, uvId, vertexId
-                        dim as Face3 face
-                        for j as integer = 0 to ubound(pieces) - 1
-                            normalId = -1
-                            uvId     = -1
-                            vertexId = -1
-                            dim as string p = pieces(1 + j)
-                            if instr(p, "/") then
-                                string_split(p, "/", subpieces())
-                                for k as integer = 0 to ubound(subpieces)
-                                    if subpieces(k) <> "" then
-                                        select case k
-                                            case 0: vertexId = val(subpieces(k)) - 1
-                                            case 1: uvId     = val(subpieces(k)) - 1
-                                            case 2: normalId = val(subpieces(k)) - 1
-                                        end select
-                                    end if
-                                next k
-                            else
-                                vertexId = val(pieces(1 + j)) - 1
-                            end if
-                            if vertexId > -1 then
-                                face.addVertex(vertexCollection(vertexId))
-                            end if
-                            if uvId > -1 then
-                                face.addUv(uvCollection(uvId))
-                            end if
-                            if normalId > -1 then
-                                face.normal = normalCollection(normalId)
-                            end if
-                            print
-                        next j
-                        mesh.addFace(face)
-                    case else
-                        continue while
-                end select
-            next i
-        wend
-    close #1
-    'mesh.buildBsp()
-    return 0
-end function
 function Object3.pointToWorld(l as Vector3) as Vector3
     return vectorToWorld(l) + position
 end function
-function Object3.toWorld() as Object3
+function Object3.meshToWorld() as Mesh3
     dim as Face3 face
+    dim as Mesh3 newMesh
     dim as Vector3 vertex
-    for i as integer = 0 to ubound(mesh.faces)
-        face = mesh.faces(i)
-        mesh.faces(i).normal _
-            = rightward * face.normal.x _
-            + upward    * face.normal.y _
-            + forward   * face.normal.z
-        mesh.faces(i).position _
-            = rightward * face.position.x _
-            + upward    * face.position.y _
-            + forward   * face.position.z _
-            + this.position
-        for j as integer = 0 to ubound(face.vertexes)
-            vertex = face.vertexes(j)
-            mesh.faces(i).vertexes(j) _
-                = rightward * vertex.x _
-                + upward    * vertex.y _
-                + forward   * vertex.z _
+    if mesh then
+        newMesh = *mesh
+        for i as integer = 0 to ubound(mesh->faces)
+            face = newMesh.faces(i)
+            newMesh.faces(i).normal _
+                = rightward * face.normal.x _
+                + upward    * face.normal.y _
+                + forward   * face.normal.z
+            newMesh.faces(i).position _
+                = rightward * face.position.x _
+                + upward    * face.position.y _
+                + forward   * face.position.z _
                 + this.position
-        next j
-    next i
-    return this
+            for j as integer = 0 to ubound(face.vertexes)
+                vertex = face.vertexes(j)
+                newMesh.faces(i).vertexes(j) _
+                    = rightward * vertex.x _
+                    + upward    * vertex.y _
+                    + forward   * vertex.z _
+                    + this.position
+            next j
+        next i
+    end if
+    return newMesh
 end function
 function Object3.vectorToLocal(byval w as Vector3) as Vector3
     w -= position
@@ -168,25 +88,3 @@ end function
 function Object3.vectorToWorld(l as Vector3) as Vector3
     return rightward * l.x + upward * l.y + forward * l.z
 end function
-
-'==============================================================================
-'= FUNCTION
-'==============================================================================
-private sub string_split(subject as string, delim as string, pieces() as string)
-    dim as integer i, j, index = -1
-    dim as string s
-    i = 1
-    while i > 0
-        s = ""
-        j = instr(i, subject, delim)
-        if j then
-            s = mid(subject, i, j-i)
-            i = j+1
-        else
-            s = mid(subject, i)
-            i = 0
-        end if
-        index += 1: redim preserve pieces(index)
-        pieces(index) = s
-    wend
-end sub

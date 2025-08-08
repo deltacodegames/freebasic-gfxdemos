@@ -4,47 +4,39 @@
 ' -----------------------------------------------------------------------------
 #include once "gamesession.bi"
 #include once "image32.bi"
+#include once "fbgfx.bi"
+using fb
 
 #define rgb_r(c) (c shr 16 and &hff)
 #define rgb_g(c) (c shr  8 and &hff)
 #define rgb_b(c) (c        and &hff)
 
-function lerpColor (from as long, goal as long, ratio as double = 0.5) as ulong
-    dim as ubyte r, g, b
-    ratio = iif(ratio < 0, 0, iif(ratio > 1, 1, ratio))
-    r = rgb_r(from) + int((rgb_r(goal) - rgb_r(from)) * ratio)
-    g = rgb_g(from) + int((rgb_g(goal) - rgb_g(from)) * ratio)
-    b = rgb_b(from) + int((rgb_b(goal) - rgb_b(from)) * ratio)
-    return rgb(r, g, b)
-end function
+#macro array_append(arr, value)
+    redim preserve arr(ubound(arr) + 1)
+    arr(ubound(arr)) = value
+#endmacro
 
-function incrementColor (colr as ulong, inc as long) as ulong
-    dim as long r, g, b
-    r = rgb_r(colr) + inc
-    g = rgb_g(colr) + inc
-    b = rgb_b(colr) + inc
-    r = iif(r < 0, 0, iif(r > 255, 255, r))
-    g = iif(g < 0, 0, iif(g > 255, 255, g))
-    b = iif(b < 0, 0, iif(b > 255, 255, b))
-    return rgb(r, g, b)
-end function
-
-function scaleColor (colr as long, factor as double) as ulong
-    dim as long r, g, b
-    r = int(rgb_r(colr) * factor)
-    g = int(rgb_g(colr) * factor)
-    b = int(rgb_b(colr) * factor)
-    r = iif(r < 0, 0, iif(r > 255, 255, r))
-    g = iif(g < 0, 0, iif(g > 255, 255, g))
-    b = iif(b < 0, 0, iif(b > 255, 255, b))
-    return rgb(r, g, b)
-end function
-
-function GameSession.addObject(sid as string, filename as string = "") as Object3 ptr
+declare function incrementColor (colr as ulong, inc as long) as ulong
+declare function lerpColor (from as long, goal as long, ratio as double = 0.5) as ulong
+declare function scaleColor (colr as long, factor as double) as ulong
+declare sub      string_split(subject as string, delim as string, pieces() as string)
+'==============================================================================
+'= CONSTRUCTOR
+'==============================================================================
+'==============================================================================
+'= METHOD
+'==============================================================================
+function GameSession.addObject(sid as string, mesh as Mesh3 ptr = 0) as Object3 ptr
     dim as integer ub = ubound(objects) + 1
     redim preserve objects(ub)
-    objects(ub) = new Object3(sid, filename)
+    objects(ub) = new Object3(sid, mesh)
     return objects(ub)
+end function
+function GameSession.addMesh(sid as string = "") as Mesh3 ptr
+    dim as integer ub = ubound(meshes) + 1
+    redim preserve meshes(ub)
+    meshes(ub) = new Mesh3(sid)
+    return meshes(ub)
 end function
 function GameSession.addParticle(position as Vector3, colr as integer) as Particle3 ptr
     dim as integer ub = ubound(particles) + 1
@@ -71,6 +63,10 @@ function GameSession.free() as GameSession
     for i as integer = 0 to ubound(objects)
         delete objects(i)
         objects(i) = 0
+    next i
+    for i as integer = 0 to ubound(meshes)
+        delete meshes(i)
+        meshes(i) = 0
     next i
     for i as integer = 0 to ubound(particles)
         delete particles(i)
@@ -161,6 +157,102 @@ function GameSession.getTexture(index as integer) as any ptr
         return 0
     end if
 end function
+function GameSession.keyDown(scancode as integer) as boolean
+    return (keys(scancode) = 1) or (keys(scancode) = 2)
+end function
+function GameSession.keyPress(scancode as integer) as boolean
+    return (keys(scancode) = 1)
+end function
+function GameSession.keyRepeat(scancode as integer) as boolean
+    return (keys(scancode) = 2)
+end function
+function GameSession.keyUp(scancode as integer) as boolean
+    return (keys(scancode) = 3)
+end function
+function GameSession.loadMesh(filename as string, mesh as Mesh3 ptr = 0) as Mesh3 ptr
+    dim as Vector3 vertexCollection(any)
+    dim as Vector3 normalCollection(any)
+    dim as Vector2 uvCollection(any)
+    dim as string datum, pieces(any), subpieces(any), s, p
+    if mesh = 0 then
+        mesh = this.addMesh()
+    end if
+    dim as integer f = freefile
+    open filename for input as #f
+        while not eof(f)
+            line input #f, s
+            string_split(s, " ", pieces())
+            for i as integer = 0 to ubound(pieces)
+                dim as string datum = pieces(i)
+                select case datum
+                    case "o"
+                        mesh->sid = pieces(i + 1)
+                        continue while
+                    case "v"
+                        array_append(vertexCollection, type(_
+                            val(pieces(1)),_
+                            val(pieces(2)),_
+                           -val(pieces(3)) _
+                        ))
+                        mesh->addVertex(type(_
+                            val(pieces(1)),_
+                            val(pieces(2)),_
+                           -val(pieces(3)) _
+                        ))
+                    case "vn"
+                        array_append(normalCollection, type(_
+                            val(pieces(1)),_
+                            val(pieces(2)),_
+                           -val(pieces(3)) _
+                        ))
+                    case "vt"
+                        array_append(uvCollection, type(_
+                            val(pieces(1)),_
+                            val(pieces(2)) _
+                        ))
+                    case "f"
+                        dim as integer normalId, uvId, vertexId
+                        dim as Face3 face
+                        for j as integer = 0 to ubound(pieces) - 1
+                            normalId = -1
+                            uvId     = -1
+                            vertexId = -1
+                            dim as string p = pieces(1 + j)
+                            if instr(p, "/") then
+                                string_split(p, "/", subpieces())
+                                for k as integer = 0 to ubound(subpieces)
+                                    if subpieces(k) <> "" then
+                                        select case k
+                                            case 0: vertexId = val(subpieces(k)) - 1
+                                            case 1: uvId     = val(subpieces(k)) - 1
+                                            case 2: normalId = val(subpieces(k)) - 1
+                                        end select
+                                    end if
+                                next k
+                            else
+                                vertexId = val(pieces(1 + j)) - 1
+                            end if
+                            if vertexId > -1 then
+                                face.addVertex(vertexCollection(vertexId))
+                            end if
+                            if uvId > -1 then
+                                face.addUv(uvCollection(uvId))
+                            end if
+                            if normalId > -1 then
+                                face.normal = normalCollection(normalId)
+                            end if
+                            print
+                        next j
+                        mesh->addFace(face)
+                    case else
+                        continue while
+                end select
+            next i
+        wend
+    close #1
+    'mesh.buildBsp()
+    return mesh
+end function
 function GameSession.nextObject(fromObject as Object3 ptr) as Object3 ptr
     for i as integer = 0 to ubound(objects)
         if objects(i) = fromObject then
@@ -178,3 +270,83 @@ function GameSession.nextObject(fromObject as Object3 ptr) as Object3 ptr
     next i
     return fromObject
 end function
+function GameSession.updateEvents() as GameSession
+    dim as Event e
+    for i as integer = 0 to ubound(keys)
+        if keys(i) = 1 then
+            keys(i) = 2
+        elseif keys(i) = 3 then
+            keys(i) = 0
+        end if
+    next i
+    while screenevent(@e)
+        select case e.type
+        case EVENT_KEY_PRESS
+            if e.scancode <= ubound(keys) then
+                keys(e.scancode) = 1
+            end if
+        case EVENT_KEY_RELEASE
+            if e.scancode <= ubound(keys) then
+                keys(e.scancode) = 3
+            end if
+        case EVENT_KEY_REPEAT
+            if e.scancode <= ubound(keys) then
+                keys(e.scancode) = 2
+            end if
+        end select
+    wend
+    return this
+end function
+
+'==============================================================================
+'= PRIVATE
+'==============================================================================
+function incrementColor (colr as ulong, inc as long) as ulong
+    dim as long r, g, b
+    r = rgb_r(colr) + inc
+    g = rgb_g(colr) + inc
+    b = rgb_b(colr) + inc
+    r = iif(r < 0, 0, iif(r > 255, 255, r))
+    g = iif(g < 0, 0, iif(g > 255, 255, g))
+    b = iif(b < 0, 0, iif(b > 255, 255, b))
+    return rgb(r, g, b)
+end function
+
+function lerpColor (from as long, goal as long, ratio as double = 0.5) as ulong
+    dim as ubyte r, g, b
+    ratio = iif(ratio < 0, 0, iif(ratio > 1, 1, ratio))
+    r = rgb_r(from) + int((rgb_r(goal) - rgb_r(from)) * ratio)
+    g = rgb_g(from) + int((rgb_g(goal) - rgb_g(from)) * ratio)
+    b = rgb_b(from) + int((rgb_b(goal) - rgb_b(from)) * ratio)
+    return rgb(r, g, b)
+end function
+
+function scaleColor (colr as long, factor as double) as ulong
+    dim as long r, g, b
+    r = int(rgb_r(colr) * factor)
+    g = int(rgb_g(colr) * factor)
+    b = int(rgb_b(colr) * factor)
+    r = iif(r < 0, 0, iif(r > 255, 255, r))
+    g = iif(g < 0, 0, iif(g > 255, 255, g))
+    b = iif(b < 0, 0, iif(b > 255, 255, b))
+    return rgb(r, g, b)
+end function
+
+private sub string_split(subject as string, delim as string, pieces() as string)
+    dim as integer i, j, index = -1
+    dim as string s
+    i = 1
+    while i > 0
+        s = ""
+        j = instr(i, subject, delim)
+        if j then
+            s = mid(subject, i, j-i)
+            i = j+1
+        else
+            s = mid(subject, i)
+            i = 0
+        end if
+        index += 1: redim preserve pieces(index)
+        pieces(index) = s
+    wend
+end sub

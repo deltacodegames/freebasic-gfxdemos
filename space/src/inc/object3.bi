@@ -11,11 +11,11 @@ type Object3
     callback as sub(byref o as Object3, byref camera as CFrame3, byref world as CFrame3, deltaTime as double)
     cframe as CFrame3
     linear as Vector3
-    mesh as Mesh3
+    mesh as Mesh3 ptr
     sid as string
     visible as boolean = true
     declare constructor ()
-    declare constructor (sid as string, filename as string = "")
+    declare constructor (sid as string, mesh as Mesh3 ptr = 0)
     declare property position as Vector3
     declare property position(newPosition as Vector3)
     declare property orientation as Orientation3
@@ -23,9 +23,8 @@ type Object3
     declare property forward as Vector3
     declare property rightward as Vector3
     declare property upward as Vector3
-    declare function loadFile (filename as string) as integer
     declare function pointToWorld(l as Vector3) as Vector3
-    declare function toWorld() as Object3
+    declare function meshToWorld() as Mesh3
     declare function vectorToLocal(byval w as Vector3) as Vector3
     declare function vectorToWorld(l as Vector3) as Vector3
 end type

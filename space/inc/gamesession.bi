@@ -48,26 +48,29 @@ enum TextureModes
 end enum
 
 type GameSession
-    as Object3 ptr     activeObject
-    as integer         bgColor
-    as CFrame3         camera
-    as DebugFlags      debugFlags
-    as integer         debugLevel
-    as double          deltaTime
-    as GameFlags       flags
-    as double          fps
-    as Object3 ptr     debugObject
-    as Mouse2          mouse
-    as NavigationModes navMode
-    as Object3 ptr     objects(any)
-    as Particle3 ptr   particles(any)
-    as RenderModes     renderMode
-    as TextureModes    textureMode
-    as any ptr         textures(any)
-    as any ptr         shades(any, any)
-    const as integer   GeneratedShadesCount = 16
-    as CFrame3         world
-    declare function addObject(sid as string, filename as string = "") as Object3 ptr
+    as Object3 ptr      activeObject
+    as integer          bgColor
+    as CFrame3          camera
+    as DebugFlags       debugFlags
+    as integer          debugLevel
+    as double           deltaTime
+    as GameFlags        flags
+    as double           fps
+    as Object3 ptr      debugObject
+    as byte             keys(88)
+    as Mesh3 ptr        meshes(any)
+    as Mouse2           mouse
+    as NavigationModes  navMode
+    as Object3 ptr      objects(any)
+    as Particle3 ptr    particles(any)
+    as RenderModes      renderMode
+    as TextureModes     textureMode
+    as any ptr          textures(any)
+    as any ptr          shades(any, any)
+    const as integer    GeneratedShadesCount = 16
+    as CFrame3          world
+    declare function addMesh(filename as string = "") as Mesh3 ptr
+    declare function addObject(sid as string, mesh as Mesh3 ptr = 0) as Object3 ptr
     declare function addParticle(position as Vector3, colr as integer) as Particle3 ptr
     declare function addTexture(w as integer, h as integer, filename as string = "") as integer
     declare function findObject(sid as string) as Object3 ptr
@@ -75,5 +78,11 @@ type GameSession
     declare function generateShades(textureIndex as integer, darkest as double = 0.5, brightest as double = 1.5) as GameSession
     declare function getShade(textureIndex as integer, shadeIndex as integer = -1) as any ptr
     declare function getTexture(index as integer) as any ptr
+    declare function keyDown(scancode as integer) as boolean
+    declare function keyPress(scancode as integer) as boolean
+    declare function keyRepeat(scancode as integer) as boolean
+    declare function keyUp(scancode as integer) as boolean
+    declare function loadMesh(filename as string, mesh as Mesh3 ptr = 0) as Mesh3 ptr
     declare function nextObject(fromObject as Object3 ptr) as Object3 ptr
+    declare function updateEvents() as GameSession
 end type

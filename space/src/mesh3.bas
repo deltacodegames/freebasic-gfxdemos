@@ -10,6 +10,17 @@
     arr(ubound(arr)) = value
 #endmacro
 
+'==============================================================================
+'= CONSTRUCTOR
+'==============================================================================
+constructor Mesh3
+end constructor
+constructor Mesh3(sid as string)
+    this.sid = sid
+end constructor
+'==============================================================================
+'= METHOD
+'==============================================================================
 function Mesh3.addFace(face as Face3) as Mesh3
     array_append(faces, face)
     faces(ubound(faces)).id = ubound(faces)

@@ -51,7 +51,7 @@
 #include once "helpers.bi"
 #include once "defines.bi"
 #include once "main.bi"
-using FB
+using fb
 
 #ifdef __FB_64BIT__
     #define _long_ longint
@@ -105,8 +105,8 @@ sub init(byref game as GameSession)
     game.navMode = NavigationModes.Orbit
 
     anchor    = game.addObject("anchor")
-    asteroid  = game.addObject("asteroid", "data/mesh/rocks.obj")
-    spaceship = game.addObject("spaceship", "data/mesh/spaceship3.obj")
+    asteroid  = game.addObject("asteroid", game.loadMesh("data/mesh/rocks.obj"))
+    spaceship = game.addObject("spaceship", game.loadMesh("data/mesh/spaceship3.obj"))
 
     anchor->position = Vector3.Randomized() * 10
     anchor->visible  = false
@@ -116,11 +116,11 @@ sub init(byref game as GameSession)
     if game.getTexture(textureId) then
         game.generateShades(textureId)
         for i as integer = 0 to ubound(game.shades, 2)
-            asteroid->mesh.addTexture(game.getShade(textureId, i))
+            asteroid->mesh->addTexture(game.getShade(textureId, i))
         next i
     end if
     
-    spaceship->mesh.doubleSided = true
+    spaceship->mesh->doubleSided = true
     textureId = game.addTexture(64, 64)
     if game.getTexture(textureId) then
         image.readInfo(game.getTexture(textureId))
@@ -141,7 +141,7 @@ sub init(byref game as GameSession)
         next y
         game.generateShades(textureId)
         for i as integer = 0 to ubound(game.shades, 2)
-            spaceship->mesh.addTexture(game.getShade(textureId, i))
+            spaceship->mesh->addTexture(game.getShade(textureId, i))
         next i
     end if
     for i as integer = 0 to NUM_PARTICLES-1
@@ -545,7 +545,7 @@ sub renderBspFaces(node as BspNode3 ptr, faces() as Face3, byref mesh as Mesh3, 
     end if
 end sub
 sub renderObjects(objects() as Object3 ptr, byref camera as CFrame3, byref world as CFrame3, renderMode as integer, textureMdoe as integer = -1)
-    dim as Object3 o
+    dim as Mesh3 mesh
     dim as integer keys(any)
     dim as double vals(any)
     for i as integer = 0 to ubound(objects)
@@ -555,9 +555,8 @@ sub renderObjects(objects() as Object3 ptr, byref camera as CFrame3, byref world
         end if
     next i
     for i as integer = 0 to ubound(objects)
-        o = *objects(i)
-        o.toWorld()
-        renderFaces o.mesh, camera, world, renderMode, textureMdoe
+        mesh = objects(i)->meshToWorld()
+        renderFaces mesh, camera, world, renderMode, textureMdoe
         'renderBspFaces o.mesh.faces(), mesh, camera, world, textureMdoe
     next i
 end sub
@@ -665,7 +664,6 @@ sub main(game as GameSession)
     dim byref as integer         debugLevel  = game.debugLevel
     
     dim as double deltaTime, frameStartTime
-    dim as integer keyWait = -1
 
     anchor    = game.findObject(   "anchor")
     asteroid  = game.findObject( "asteroid")
@@ -680,8 +678,10 @@ sub main(game as GameSession)
     activeObject = game.activeObject
     
     frameStartTime = timer
-    while not multikey(SC_ESCAPE)
+    while not game.keyDown(SC_ESCAPE)
 
+        game.updateEvents()
+        
         select case navMode
             case NavigationModes.Fly   : handleFlyInput    game
             case NavigationModes.Follow: handleFollowInput game
@@ -707,7 +707,7 @@ sub main(game as GameSession)
             dim as Face3 face
             face.normal   = type(0,0,1).normalized()
             face.position = type(1,0,0)
-            activeObject->mesh = *(activeObject->mesh.splitMesh(face.normal, face.position))
+            'activeObject->mesh = (activeObject->mesh->splitMesh(face.normal, face.position))
             ' destroy old mesh (mainly texture memory)
         end if
         
@@ -719,28 +719,28 @@ sub main(game as GameSession)
         game.deltaTime = deltaTime
         game.mouse.update
 
-        keydown(SC_F1, keyWait, setDebugLevel(1, game))
-        keydown(SC_F2, keyWait, setDebugLevel(2, game))
-        keydown(SC_F3, keyWait, setDebugLevel(3, game))
-        keydown(SC_F4, keyWait, setDebugLevel(4, game))
+        if game.keyPress(SC_F1) then setDebugLevel(1, game)
+        if game.keyPress(SC_F2) then setDebugLevel(2, game)
+        if game.keyPress(SC_F3) then setDebugLevel(3, game)
+        if game.keyPress(SC_F4) then setDebugLevel(4, game)
 
-        if multikey(SC_SLASH) then textureMode = TextureModes.Auto
-        keydown(SC_COMMA , keyWait, textureMode -= iif(textureMode > TextureModes.Best , 1, 0))
-        keydown(SC_PERIOD, keyWait, textureMode += iif(textureMode < TextureModes.Worst, 1, 0))
+        if game.keyPress(SC_SLASH ) then textureMode = TextureModes.Auto
+        if game.keyPress(SC_COMMA ) then textureMode -= iif(textureMode > TextureModes.Best , 1, 0)
+        if game.keyPress(SC_PERIOD) then textureMode += iif(textureMode < TextureModes.Worst, 1, 0)
 
-        keydown(SC_LEFTBRACKET , keyWait, textureMode -= iif(textureMode > TextureModes.Best, 1, 0))
-        keydown(SC_RIGHTBRACKET, keyWait, textureMode += iif(textureMode < TextureModes.Worst, 1, 0))
+        if game.keyPress(SC_LEFTBRACKET ) then textureMode -= iif(textureMode > TextureModes.Best , 1, 0)
+        if game.keyPress(SC_RIGHTBRACKET) then textureMode += iif(textureMode < TextureModes.Worst, 1, 0)
 
-        if multikey(SC_O) then activeObject->cframe = CFrame3()
-        if multikey(SC_X) then activeObject->cframe.orientation = Orientation3(Vector3(pi/2, 0, 0))
-        if multikey(SC_Y) then activeObject->cframe.orientation = Orientation3(Vector3(0, pi/2, 0))
-        if multikey(SC_Z) then activeObject->cframe.orientation = Orientation3(Vector3(0, 0, pi/2))
+        if game.keyPress(SC_O) then activeObject->cframe = CFrame3()
+        if game.keyPress(SC_X) then activeObject->cframe.orientation = Orientation3(Vector3(pi/2, 0, 0))
+        if game.keyPress(SC_Y) then activeObject->cframe.orientation = Orientation3(Vector3(0, pi/2, 0))
+        if game.keyPress(SC_Z) then activeObject->cframe.orientation = Orientation3(Vector3(0, 0, pi/2))
 
-        keydown(SC_1, keyWait, navMode = NavigationModes.Fly   : game.activeObject = anchor   : setFlag(game.flags, GameFlags.ResetMode))
-        keydown(SC_2, keyWait, navMode = NavigationModes.Follow: game.activeObject = spaceship: setFlag(game.flags, GameFlags.ResetMode))
-        keydown(SC_3, keyWait, navMode = NavigationModes.Orbit : game.activeObject = spaceship: setFlag(game.flags, GameFlags.ResetMode))
+        if game.keyPress(SC_1) then navMode = NavigationModes.Fly   : game.activeObject = anchor   : setFlag(game.flags, GameFlags.ResetMode)
+        if game.keyPress(SC_2) then navMode = NavigationModes.Follow: game.activeObject = spaceship: setFlag(game.flags, GameFlags.ResetMode)
+        if game.keyPress(SC_3) then navMode = NavigationModes.Orbit : game.activeObject = spaceship: setFlag(game.flags, GameFlags.ResetMode)
 
-        if multikey(SC_CONTROL) <> 0 or game.mouse.middleDown then
+        if game.keyPress(SC_CONTROL) or game.mouse.middleDown then
             game.camera.lookAt(spaceship->position, spaceship->upward)
         end if
     wend
@@ -748,7 +748,7 @@ end sub
 
 sub renderFrame(byref game as GameSession)
     dim as CFrame3 cam = game.camera
-    if multikey(SC_BACKSPACE) then cam.orientation = cam.orientation.rotated(Vector3(0, rad(180), 0))
+    if game.keyDown(SC_BACKSPACE) then cam.orientation = cam.orientation.rotated(Vector3(0, rad(180), 0))
     line (ScreenMode.viewlft, ScreenMode.viewtop)-(ScreenMode.viewrgt, ScreenMode.viewbtm), game.bgColor, bf
     renderParticles(game.particles(), cam)
     renderObjects(game.objects(), cam, game.world, game.renderMode, game.textureMode)
@@ -757,12 +757,11 @@ end sub
 sub renderRadar(byref game as GameSession)
 
     static as boolean drawRadar = true
-    static as integer keyWait = -1
 
     dim as Object3 ptr o, active = game.activeObject
     dim as Vector3 v
 
-    keydown(SC_M, keyWait, drawRadar = not drawRadar)
+    if game.keyPress(SC_M) then drawRadar = not drawRadar
     if drawRadar then
         ScreenMode.resetView
         dim as integer w = ScreenMode.w/10, h = (ScreenMode.h*ScreenMode.ratiow)/10, b = 1
@@ -867,9 +866,9 @@ end sub
 sub drawNormals(byref game as GameSession)
     dim as Object3 ptr debugObject = game.debugObject
     dim as Face3 face
-    if debugObject then
-        for i as integer = 0 to ubound(debugObject->mesh.faces)
-            face = debugObject->mesh.faces(i)
+    if debugObject <> 0 and debugObject->mesh <> 0 then
+        for i as integer = 0 to ubound(debugObject->mesh->faces)
+            face = debugObject->mesh->faces(i)
             face.normal = debugObject->vectorToWorld(face.normal)
             face.position = debugObject->pointToWorld(face.position)
             renderFaceWireframe face, game.camera, game.world, 0, , &hd00000
@@ -881,9 +880,9 @@ sub drawVertexes(byref game as GameSession)
     dim as Object3 ptr debugObject = game.debugObject
     dim as Face3 face
     dim as Vector3 vertex
-    if debugObject then
-        for i as integer = 0 to ubound(debugObject->mesh.faces)
-            face = debugObject->mesh.faces(i)
+    if debugObject <> 0 and debugObject->mesh <> 0 then
+        for i as integer = 0 to ubound(debugObject->mesh->faces)
+            face = debugObject->mesh->faces(i)
             for j as integer = 0 to ubound(face.vertexes)
                 face.vertexes(j) = debugObject->pointToWorld(face.vertexes(j))
             next j
@@ -989,20 +988,20 @@ sub handleFlyInput(byref game as GameSession)
         angularGoal.z -= mx
     end if
 
-    if multikey(SC_W     ) then linearGoal.z =  1
-    if multikey(SC_S     ) then linearGoal.z = -1
-    if multikey(SC_D     ) then linearGoal.x =  1
-    if multikey(SC_A     ) then linearGoal.x = -1
-    if multikey(SC_SPACE ) then linearGoal.y =  1
-    if multikey(SC_LSHIFT) then linearGoal.y = -1
+    if game.keyDown(SC_W     ) then linearGoal.z =  1
+    if game.keyDown(SC_S     ) then linearGoal.z = -1
+    if game.keyDown(SC_D     ) then linearGoal.x =  1
+    if game.keyDown(SC_A     ) then linearGoal.x = -1
+    if game.keyDown(SC_SPACE ) then linearGoal.y =  1
+    if game.keyDown(SC_LSHIFT) then linearGoal.y = -1
     
 
-    if multikey(SC_UP   ) then angularGoal.x = -1
-    if multikey(SC_DOWN ) then angularGoal.x =  1
-    if multikey(SC_RIGHT) then angularGoal.y =  1
-    if multikey(SC_LEFT ) then angularGoal.y = -1
-    if multikey(SC_E    ) then angularGoal.z = -1
-    if multikey(SC_Q    ) then angularGoal.z =  1
+    if game.keyDown(SC_UP   ) then angularGoal.x = -1
+    if game.keyDown(SC_DOWN ) then angularGoal.x =  1
+    if game.keyDown(SC_RIGHT) then angularGoal.y =  1
+    if game.keyDown(SC_LEFT ) then angularGoal.y = -1
+    if game.keyDown(SC_E    ) then angularGoal.z = -1
+    if game.keyDown(SC_Q    ) then angularGoal.z =  1
 
     if linearGoal.length > 0 then
         linearGoal = normalize(dot(camera.orientation.matrix(), linearGoal)) * 15
@@ -1024,7 +1023,6 @@ sub handleFollowInput(byref game as GameSession)
     dim as Object3 ptr active   = game.activeObject
     dim as double deltaTime     = game.deltaTime
     
-    static as integer keyWait = -1
     static as Vector3 distances(4) = {_
         type(0, 1.5, 6),_
         type(0,  3, 12),_
@@ -1039,29 +1037,26 @@ sub handleFollowInput(byref game as GameSession)
         distanceId = 0
     end if
 
-    if multikey(SC_TAB) and keyWait = -1 then
-        keyWait = SC_TAB
+    if game.keyPress(SC_TAB) then
         distanceId += 1
         if distanceId > ubound(distances) then
             distanceId = lbound(distances)
         end if
-    elseif not multikey(SC_TAB) and keyWait = SC_TAB then
-        keyWait = -1
     end if
 
-    if multikey(SC_W     ) then thrustGoal.z =  100
-    if multikey(SC_S     ) then thrustGoal.z = -20
-    if multikey(SC_D     ) then thrustGoal.x =  10
-    if multikey(SC_A     ) then thrustGoal.x = -10
-    if multikey(SC_SPACE ) then thrustGoal.y =  10
-    if multikey(SC_LSHIFT) then thrustGoal.y = -10
+    if game.keyDown(SC_W     ) then thrustGoal.z =  100
+    if game.keyDown(SC_S     ) then thrustGoal.z = -20
+    if game.keyDown(SC_D     ) then thrustGoal.x =  10
+    if game.keyDown(SC_A     ) then thrustGoal.x = -10
+    if game.keyDown(SC_SPACE ) then thrustGoal.y =  10
+    if game.keyDown(SC_LSHIFT) then thrustGoal.y = -10
 
-    if multikey(SC_UP   ) then angularGoal.x =  1
-    if multikey(SC_DOWN ) then angularGoal.x = -1
-    if multikey(SC_RIGHT) then angularGoal.y =  1
-    if multikey(SC_LEFT ) then angularGoal.y = -1
-    if multikey(SC_E    ) then angularGoal.z = -1
-    if multikey(SC_Q    ) then angularGoal.z =  1
+    if game.keyDown(SC_UP   ) then angularGoal.x =  1
+    if game.keyDown(SC_DOWN ) then angularGoal.x = -1
+    if game.keyDown(SC_RIGHT) then angularGoal.y =  1
+    if game.keyDown(SC_LEFT ) then angularGoal.y = -1
+    if game.keyDown(SC_E    ) then angularGoal.z = -1
+    if game.keyDown(SC_Q    ) then angularGoal.z =  1
 
     if linearGoal.length > 0 then
         linearGoal = normalize(_
@@ -1100,7 +1095,6 @@ end sub
 sub handleOrbitInput(byref game as GameSession)
 
     static as Vector3 angular, linear, offset, upward, zero = Vector3.Zero
-    static as integer keyWait   = -1
     static as boolean firstTime = true
 
     dim byref as Mouse2 mouse   = game.mouse
@@ -1110,14 +1104,11 @@ sub handleOrbitInput(byref game as GameSession)
     dim as double distance
     static as double x, y
 
-    if multikey(SC_TAB) and keyWait = -1 then
-        keyWait = SC_TAB
+    if game.keyPress(SC_TAB) then
         active = game.nextObject(active)
         game.activeObject = active
         game.debugObject  = active
         firstTime = true
-    elseif not multikey(SC_TAB) and keyWait = SC_TAB then
-        keyWait = -1
     end if
     
     if firstTime or hasFlag(game.flags, GameFlags.ResetMode) then

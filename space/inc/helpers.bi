@@ -11,15 +11,6 @@
     arr(ubound(arr)) = value
 #endmacro
 
-#macro keydown(scanCode, waitVar, codeBlock)
-    if multikey(scanCode) and waitVar = -1 then
-        waitVar = scanCode
-        codeBlock
-    elseif not multikey(scanCode) and waitVar = scanCode then
-        waitVar = -1
-    end if
-#endmacro
-
 declare function hasflag(byref flags as integer, flag as integer) as boolean
 declare sub setFlag(byref flags as integer, flag as integer)
 declare sub unsetFlag(byref flags as integer, flag as integer)
