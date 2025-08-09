@@ -225,7 +225,7 @@ sub renderFaceSolid(byref face as Face3, byref camera as CFrame3, byref world as
     for i as integer = 0 to ubound(face.vertexes)
         worldVertex   = face.vertexes(i)
         viewVertex(i) = worldToView(worldVertex, camera)
-        if viewVertex(i).z < 1 then
+        if viewVertex(i).z <= 0 then
             exit sub
         end if
     next i
@@ -241,26 +241,16 @@ sub renderFaceSolid(byref face as Face3, byref camera as CFrame3, byref world as
     )
     for i as integer = 0 to ubound(viewVertex)
         pixels(i) = viewToScreen(viewVertex(i))
+        pixels(i).x = pmap(pixels(i).x, 0)
+        pixels(i).y = pmap(pixels(i).y, 1)
     next i
-    for i as integer = 1 to ubound(pixels) - 1
-        a = pixels(0)
-        b = pixels(i)
-        c = pixels(i+1)
-        a.x = pmap(a.x, 0): a.y = pmap(a.y, 1)
-        b.x = pmap(b.x, 0): b.y = pmap(b.y, 1)
-        c.x = pmap(c.x, 0): c.y = pmap(c.y, 1)
-        ScreenMode.resetView()
-        Rasterizer.drawFlatTri(_
-            Vector2(a.x, a.y),_
-            Vector2(b.x, b.y),_
-            Vector2(c.x, c.y),_
-            colr _
-        )
-        ScreenMode.applyView()
-    next i
+    ScreenMode.resetView()
+    Rasterizer.drawFlatPoly pixels(), colr
+    ScreenMode.applyView()
 end sub
 sub renderFaceTextured(byref face as Face3, byref camera as CFrame3, byref world as CFrame3, textures() as any ptr, quality as integer = -1)
     dim as Vector2 a, b, c, pixels(ubound(face.vertexes)), uvs(ubound(face.vertexes))
+    dim as Vector2 u, v, w
     dim as Vector3 viewNormal, viewVertex(ubound(face.vertexes))
     dim as Vector3 worldNormal, worldVertex
     dim as any ptr srcRow, dstRow, texture
@@ -274,7 +264,7 @@ sub renderFaceTextured(byref face as Face3, byref camera as CFrame3, byref world
     for i as integer = 0 to ubound(face.vertexes)
         worldVertex   = face.vertexes(i)
         viewVertex(i) = worldToView(worldVertex, camera)
-        if viewVertex(i).z <= 0 then '- closer allow because draw sub clips
+        if viewVertex(i).z <= 0 then
             exit sub
         end if
     next i
@@ -299,35 +289,12 @@ sub renderFaceTextured(byref face as Face3, byref camera as CFrame3, byref world
     for i as integer = 0 to ubound(viewVertex)
         pixels(i) = viewToScreen(viewVertex(i))
         uvs(i) = face.uvs(i)
+        pixels(i).x = pmap(pixels(i).x, 0)
+        pixels(i).y = pmap(pixels(i).y, 1)
     next i
-    for i as integer = 1 to ubound(pixels) - 1
-        a = pixels(0)
-        b = pixels(i)
-        c = pixels(i+1)
-        a.x = pmap(a.x, 0): a.y = pmap(a.y, 1)
-        b.x = pmap(b.x, 0): b.y = pmap(b.y, 1)
-        c.x = pmap(c.x, 0): c.y = pmap(c.y, 1)
-        ScreenMode.resetView()
-        if q = 0 then
-            Rasterizer.drawTexturedTri(_
-                Vector2(a.x, a.y),_
-                Vector2(b.x, b.y),_
-                Vector2(c.x, c.y),_
-                uvs(0), uvs(i), uvs(i+1),_
-                texture _
-            )
-        else
-            Rasterizer.drawTexturedTriLowQ(_
-                Vector2(a.x, a.y),_
-                Vector2(b.x, b.y),_
-                Vector2(c.x, c.y),_
-                uvs(0), uvs(i), uvs(i+1),_
-                texture,_
-                q _
-            )
-        end if
-        ScreenMode.applyView()
-    next i
+    ScreenMode.resetView()
+    Rasterizer.drawTexturedPoly pixels(), uvs(), texture
+    ScreenMode.applyView()
 end sub
 sub renderFaceWireframe(byref face as Face3, byref camera as CFrame3, byref world as CFrame3, wireColor as integer = &hffffff, vertexColor as integer = 0, normalColor as integer = 0, doubleSided as boolean = false)
     dim as Vector2 a, b, c, pixels(ubound(face.vertexes))
@@ -338,7 +305,7 @@ sub renderFaceWireframe(byref face as Face3, byref camera as CFrame3, byref worl
         for i as integer = 0 to ubound(face.vertexes)
             worldVertex   = face.vertexes(i)
             viewVertex(i) = worldToView(worldVertex, camera)
-            if viewVertex(i).z < 1 then
+            if viewVertex(i).z <= 0 then
                 exit sub
             end if
         next i
@@ -351,30 +318,20 @@ sub renderFaceWireframe(byref face as Face3, byref camera as CFrame3, byref worl
     if wireColor <> 0 or vertexColor <> 0 then
         for i as integer = 0 to ubound(viewVertex)
             pixels(i) = viewToScreen(viewVertex(i))
+            pixels(i).x = pmap(pixels(i).x, 0)
+            pixels(i).y = pmap(pixels(i).y, 1)
         next i
-        for i as integer = 0 to ubound(pixels)
-            if i < ubound(pixels) then
-                a = pixels(i)
-                b = pixels(i+1)
-            else
-                a = pixels(i)
-                b = pixels(0)
-            end if
-            if wireColor then
-                line(a.x, a.y)-(b.x, b.y), wireColor, , style
-            end if
-            if vertexColor then
-                line(a.x-.005, a.y-.005)-step(.01, .01), vertexColor, b, style
-            end if
-        next i
+        ScreenMode.resetView()
+        Rasterizer.drawWireframePoly pixels(), wireColor, style
+        ScreenMode.applyView()
     end if
-    if normalColor then
-        if position.z > 1 and position.z + normal.z > 1 then
-            a = viewToScreen(position)
-            b = viewToScreen(position + normal)
-            line(a.x, a.y)-(b.x, b.y), normalColor, , style
-        end if
-    end if
+    'if normalColor then
+    '    if position.z > 1 and position.z + normal.z > 1 then
+    '        a = viewToScreen(position)
+    '        b = viewToScreen(position + normal)
+    '        line(a.x, a.y)-(b.x, b.y), normalColor, , style
+    '    end if
+    'end if
 end sub
 sub selectionSort(keys() as integer, vals() as double)
     dim as double max
