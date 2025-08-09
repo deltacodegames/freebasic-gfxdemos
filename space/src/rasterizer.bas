@@ -141,8 +141,8 @@ sub Rasterizer.drawTexturedTri(a as Vector2, b as Vector2, c as Vector2, uva as 
                 u = 1-dot(p-a, sau)*sal: if u < 0 or u > 1 then continue for
                 v = 1-dot(p-b, sbu)*sbl: if v < 0 or v > 1 then continue for
                 w = 1-dot(p-c, scu)*scl: if w < 0 or w > 1 then continue for
-                n = (uva*u + uvb*v + uvc*w)/3
-                *pixel = image.getPixel(u, v)
+                n = uva*u + uvb*v + uvc*w
+                *pixel = image.getPixel(n.x, n.y)
                 xa = x + 1
             next x
             rowStart += pitch
@@ -201,8 +201,8 @@ sub Rasterizer.drawTexturedTriLowQ(a as Vector2, b as Vector2, c as Vector2, uva
                 u = 1-dot(p-a, sau) * sal: if u < 0 or u > 1 then continue for
                 v = 1-dot(p-b, sbu) * sbl: if v < 0 or v > 1 then continue for
                 w = 1-dot(p-c, scu) * scl: if w < 0 or w > 1 then continue for
-                n = (uva*u + uvb*v + uvc*w)/3
-                colr = image.getPixel(u, v)
+                n = uva*u + uvb*v + uvc*w
+                colr = image.getPixel(n.x, n.y)
                 line (x, y)-step(q-1, q-1), colr, bf
                 if xa = -1 then xa = x
                 xb = x
