@@ -208,7 +208,7 @@ function GameSession.loadMesh(filename as string, mesh as Mesh3 ptr = 0) as Mesh
                     case "vt"
                         array_append(uvCollection, type(_
                             val(pieces(1)),_
-                            val(pieces(2)) _
+                            1-val(pieces(2)) _
                         ))
                     case "f"
                         dim as integer normalId, uvId, vertexId

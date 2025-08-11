@@ -85,11 +85,6 @@ end
 sub init(byref game as GameSession)
 
     dim as Object3 ptr anchor, asteroid, spaceship
-    dim as Image32 image
-    dim as any ptr buffer
-    dim as long colr, value
-    dim as long rc, gc, bc
-    dim as double a, b, u, v
     dim as integer textureId
 
     game.bgColor     = &h000007
@@ -99,6 +94,7 @@ sub init(byref game as GameSession)
     randomize
     initScreen()
     Rasterizer.init()
+    Rasterizer.clip2d = false
     
     game.mouse.hide()
     game.mouse.setMode(Mouse2Mode.Viewport)
@@ -121,29 +117,92 @@ sub init(byref game as GameSession)
     end if
     
     spaceship->mesh->doubleSided = true
-    textureId = game.addTexture(64, 64)
+    textureId = game.addTexture(64, 64, "data/mesh/textures/spaceship3.bmp")
     if game.getTexture(textureId) then
-        image.readInfo(game.getTexture(textureId))
-        for y as double = 0 to 63
-            for x as double = 0 to 63
-                a = x / 64
-                b = y / 64
-                u = sin(2*pi*a)
-                v = cos(2*pi*a)
-                colr  = ColorSpace2.SampleColor(Vector2(u, v)*(a+b), 2)
-                value = -32 + (int(x) xor int(y))*2
-                rc = clamp(rgb_r(colr) + value, 0, 255)
-                gc = clamp(rgb_g(colr) + value, 0, 255)
-                bc = clamp(rgb_b(colr) + value, 0, 255)
-                colr = rgb(rc, gc, bc)
-                image.putPixel(x, y, colr)
-            next x
-        next y
         game.generateShades(textureId)
         for i as integer = 0 to ubound(game.shades, 2)
             spaceship->mesh->addTexture(game.getShade(textureId, i))
         next i
     end if
+
+    'ScreenMode.resetView()
+    'dim as Face3 face
+    'dim as Vector2 uv, n, p, a, b
+    'dim as boolean inside, inside2
+    'dim as any ptr buffer = imagecreate(64, 64)
+    'line buffer, (0, 0)-(63, 63), &hff00ff, bf
+    'for i as integer = 0 to ubound(spaceship->mesh->faces)
+        'face = spaceship->mesh->faces(i)
+        'for y as integer = 0 to 63
+            'for x as integer = 0 to 63
+                'p = Vector2((x+0.5)/64, (y+0.5)/64)
+                'inside = true
+                'for j as integer = 0 to ubound(face.uvs)
+                    'a = face.uvs(j)
+                    'b = iif(j < ubound(face.uvs), face.uvs(j+1), face.uvs(0))
+                    'n = normalize((b-a).rotated(-pi/2))
+                    'if dot(n, p-a) < 0 then
+                        'inside = false
+                        'exit for
+                    'end if
+                'next j
+                'if inside then
+                    'pset buffer, (x, y), face.colr
+                'end if
+            'next x
+        'next y
+    'next i
+    'for i as integer = 0 to ubound(spaceship->mesh->faces)
+        'face = spaceship->mesh->faces(i)
+        'for y as integer = 0 to 63
+            'for x as integer = 0 to 63
+                'if point(x, y, buffer) = &hff00ff then
+                    'inside = true
+                    'for j as integer = 0 to ubound(face.uvs)
+                        'a = face.uvs(j)
+                        'b = iif(j < ubound(face.uvs), face.uvs(j+1), face.uvs(0))
+                        'n = normalize((b-a).rotated(-pi/2))
+                        'inside2 = false
+                        'if dot(n, Vector2((x+0.001)/64, (y+0.001)/64)-a) >= 0 then inside2 = true
+                        'if dot(n, Vector2((x+0.999)/64, (y+0.001)/64)-a) >= 0 then inside2 = true
+                        'if dot(n, Vector2((x+0.001)/64, (y+0.999)/64)-a) >= 0 then inside2 = true
+                        'if dot(n, Vector2((x+0.999)/64, (y+0.999)/64)-a) >= 0 then inside2 = true
+                        'if inside2 = false then
+                            'inside = false
+                            'exit for
+                        'end if
+                    'next j
+                    'if inside then
+                        'pse6t buffer, (x, y), 0
+                    'end if
+                'end if
+            'next x
+        'next y
+    'next i
+    'bsave "uvmap.bmp", buffer
+    'textureId = game.addTexture(64, 64)
+    'if game.getTexture(textureId) then
+    '    image.readInfo(game.getTexture(textureId))
+    '    for y as double = 0 to 63
+    '        for x as double = 0 to 63
+    '            a = x / 64
+    '            b = y / 64
+    '            u = sin(2*pi*a)
+    '            v = cos(2*pi*a)
+    '            colr  = ColorSpace2.SampleColor(Vector2(u, v)*(a+b), 2)
+    '            value = -32 + (int(x) xor int(y))*2
+    '            rc = clamp(rgb_r(colr) + value, 0, 255)
+    '            gc = clamp(rgb_g(colr) + value, 0, 255)
+    '            bc = clamp(rgb_b(colr) + value, 0, 255)
+    '            colr = rgb(rc, gc, bc)
+    '            image.putPixel(x, y, colr)
+    '        next x
+    '    next y
+    '    game.generateShades(textureId)
+    '    for i as integer = 0 to ubound(game.shades, 2)
+    '        spaceship->mesh->addTexture(game.getShade(textureId, i))
+    '    next i
+    'end if
     for i as integer = 0 to NUM_PARTICLES-1
         game.addParticle(_
             Vector3(_
@@ -216,43 +275,146 @@ function viewToScreen(vp as vector3, fov as double = 1) as Vector2
     v2.y = (vp.y / vp.z) * 2
     return v2
 end function
-sub renderFaceSolid(byref face as Face3, byref camera as CFrame3, byref world as CFrame3)
-    dim as Vector2 a, b, c, pixels(ubound(face.vertexes))
-    dim as Vector3 viewNormal, viewVertex(ubound(face.vertexes))
-    dim as Vector3 worldNormal, worldVertex
-    dim as integer colr, cr, cg, cb
-    dim as double dt, value
-    for i as integer = 0 to ubound(face.vertexes)
-        worldVertex   = face.vertexes(i)
-        viewVertex(i) = worldToView(worldVertex, camera)
-        if viewVertex(i).z <= 0 then
-            exit sub
+
+sub clipPoly overload(vertexes() as Vector3, clipped() as Vector3, byref camera as CFrame3, index as integer = 0)
+    dim as Vector3 normals(0 to ...) = {_
+        camera.forward - camera.rightward * (2 * ScreenMode.ratioh + 2/ScreenMode.w),_
+        camera.forward - camera.upward    * (2 + 4/ScreenMode.h),_
+        camera.forward + camera.rightward * (2 * ScreenMode.ratioh),_
+        camera.forward + camera.upward    * 2,_
+        camera.forward _
+    }
+    dim as Vector3 positions(0 to ...) = {_
+        type(0, 0, 0),_
+        type(0, 0, 0),_
+        type(0, 0, 0),_
+        type(0, 0, 0),_
+        camera.forward _
+    }
+    dim as Vector3 normal = normalize(normals(index))
+    dim as Vector3 a, b, c, newVerts(any), position
+    dim as double dta, dtb
+
+    position = camera.position + positions(index)
+    
+    for i as integer = 0 to ubound(vertexes)
+        a = vertexes(i)
+        b = iif(i < ubound(vertexes), vertexes(i+1), vertexes(0))
+        dta = dot(normal, a - position)
+        dtb = dot(normal, b - position)
+        if dta >= 0 then
+            array_append(newVerts, a)
+            if dtb < 0 then
+                c = a + (b - a) * dta / (dta + abs(dtb))
+                array_append(newVerts, c)
+            end if
+        elseif dtb >= 0 then
+            c = b + (a - b) * dtb / (dtb + abs(dta))
+            array_append(newVerts, c)
         end if
     next i
-    cr = rgb_r(face.colr)
-    cg = rgb_g(face.colr)
-    cb = rgb_b(face.colr)
-    dt = dot(face.normal, world.upward)
-    value = 80 * dt
-    colr = rgb(_
-        clamp(cr+value, 0, 255),_
-        clamp(cg+value, 0, 255),_
-        clamp(cb+value, 0, 255) _
-    )
-    for i as integer = 0 to ubound(viewVertex)
-        pixels(i) = viewToScreen(viewVertex(i))
-        pixels(i).x = pmap(pixels(i).x, 0)
-        pixels(i).y = pmap(pixels(i).y, 1)
+    if index < ubound(normals) then
+        clipPoly newVerts(), clipped(), camera, index + 1
+    else
+        for i as integer = 0 to ubound(newVerts)
+            array_append(clipped, newVerts(i))
+        next i
+    end if
+end sub
+
+sub clipPoly overload(vertexes() as Vector3, uvs() as Vector2, clippedVerts() as Vector3, clippedUvs() as Vector2, byref camera as CFrame3, index as integer = 0)
+    dim as Vector3 normals(0 to ...) = {_
+        camera.forward - camera.rightward * (2 * ScreenMode.ratioh + 2/ScreenMode.w),_
+        camera.forward - camera.upward    * (2 + 4/ScreenMode.h),_
+        camera.forward + camera.rightward * (2 * ScreenMode.ratioh),_
+        camera.forward + camera.upward    * 2,_
+        camera.forward _
+    }
+    dim as Vector3 positions(0 to ...) = {_
+        type(0, 0, 0),_
+        type(0, 0, 0),_
+        type(0, 0, 0),_
+        type(0, 0, 0),_
+        camera.forward _
+    }
+    dim as Vector3 normal = normalize(normals(index))
+    dim as Vector3 a, b, c, newVerts(any), position
+    dim as Vector2 newUvs(any), u, v, w
+    dim as double dta, dtb
+
+    position = camera.position + positions(index)
+    
+    for i as integer = 0 to ubound(vertexes)
+        a = vertexes(i)
+        b = iif(i < ubound(vertexes), vertexes(i+1), vertexes(0))
+        u = uvs(i)
+        v = iif(i < ubound(uvs), uvs(i+1), uvs(0))
+        dta = dot(normal, a - position)
+        dtb = dot(normal, b - position)
+        if dta >= 0 then
+            array_append(newVerts, a)
+            array_append(newUvs  , u)
+            if dtb < 0 then
+                c = a + (b - a) * dta / (dta + abs(dtb))
+                w = u + (v - u) * dta / (dta + abs(dtb))
+                array_append(newVerts, c)
+                array_append(newUvs  , w)
+            end if
+        elseif dtb >= 0 then
+            c = b + (a - b) * dtb / (dtb + abs(dta))
+            w = v + (u - v) * dtb / (dtb + abs(dta))
+            array_append(newVerts, c)
+            array_append(newUvs  , w)
+        end if
     next i
-    ScreenMode.resetView()
-    Rasterizer.drawFlatPoly pixels(), colr
-    ScreenMode.applyView()
+    if index < ubound(normals) then
+        clipPoly newVerts(), newUvs(), clippedVerts(), clippedUvs(), camera, index + 1
+    else
+        for i as integer = 0 to ubound(newVerts)
+            array_append(clippedVerts, newVerts(i))
+            array_append(clippedUvs  , newUvs(i))
+        next i
+    end if
+end sub
+
+sub renderFaceSolid(byref face as Face3, byref camera as CFrame3, byref world as CFrame3)
+    dim as Vector2 a, b, c, pixels(any)
+    dim as Vector3 clipped(any), vertexes(any)
+    dim as integer colr, cr, cg, cb
+    dim as double dt, value
+
+    clipPoly face.vertexes(), clipped(), camera
+
+    if ubound(clipped) >= 2 then
+        redim vertexes(ubound(clipped))
+        for i as integer = 0 to ubound(clipped)
+            vertexes(i) = worldToView(clipped(i), camera)
+        next i
+        cr = rgb_r(face.colr)
+        cg = rgb_g(face.colr)
+        cb = rgb_b(face.colr)
+        dt = dot(face.normal, world.upward)
+        value = 80 * dt
+        colr = rgb(_
+            clamp(cr+value, 0, 255),_
+            clamp(cg+value, 0, 255),_
+            clamp(cb+value, 0, 255) _
+        )
+        redim pixels(ubound(vertexes))
+        for i as integer = 0 to ubound(vertexes)
+            pixels(i) = viewToScreen(vertexes(i))
+            pixels(i).x = pmap(pixels(i).x, 0)
+            pixels(i).y = pmap(pixels(i).y, 1)
+        next i
+        ScreenMode.resetView()
+        Rasterizer.drawFlatPoly pixels(), colr
+        ScreenMode.applyView()
+    end if
 end sub
 sub renderFaceTextured(byref face as Face3, byref camera as CFrame3, byref world as CFrame3, textures() as any ptr, quality as integer = -1)
-    dim as Vector2 a, b, c, pixels(ubound(face.vertexes)), uvs(ubound(face.vertexes))
+    dim as Vector2 a, b, c, clippedUvs(any), pixels(any)
     dim as Vector2 u, v, w
-    dim as Vector3 viewNormal, viewVertex(ubound(face.vertexes))
-    dim as Vector3 worldNormal, worldVertex
+    dim as Vector3 clippedVerts(any), vertexes(any)
     dim as any ptr srcRow, dstRow, texture
     dim as ulong ptr src, dst
     dim as ulong colr
@@ -261,69 +423,70 @@ sub renderFaceTextured(byref face as Face3, byref camera as CFrame3, byref world
     dim as double dist, dt
     dim as integer q = quality
     
-    for i as integer = 0 to ubound(face.vertexes)
-        worldVertex   = face.vertexes(i)
-        viewVertex(i) = worldToView(worldVertex, camera)
-        if viewVertex(i).z <= 0 then
-            exit sub
-        end if
-    next i
+    clipPoly face.vertexes(), face.uvs(), clippedVerts(), clippedUvs(), camera
 
-    if quality = -1 then
-        dist = dot(camera.forward, face.position - camera.position)
-        select case dist
-            case is <  1.000: q = 5
-            case is <  2.718: q = 4
-            case is <  7.389: q = 3
-            case is < 20.085: q = 2
-            case is < 54.598: q = 1
-            case else: q = 0
-        end select
-    end if
-    
-    if ubound(textures) < 0 then exit sub
-    dt = dot(face.normal, world.upward): dt = clamp(dt, -1, 1)
-    texture = textures(int((0.5 + dt * 0.5) * ubound(textures)))
-    if texture = 0 then exit sub
-    
-    for i as integer = 0 to ubound(viewVertex)
-        pixels(i) = viewToScreen(viewVertex(i))
-        uvs(i) = face.uvs(i)
-        pixels(i).x = pmap(pixels(i).x, 0)
-        pixels(i).y = pmap(pixels(i).y, 1)
-    next i
-    ScreenMode.resetView()
-    Rasterizer.drawTexturedPoly pixels(), uvs(), texture
-    ScreenMode.applyView()
-end sub
-sub renderFaceWireframe(byref face as Face3, byref camera as CFrame3, byref world as CFrame3, wireColor as integer = &hffffff, vertexColor as integer = 0, normalColor as integer = 0, doubleSided as boolean = false)
-    dim as Vector2 a, b, c, pixels(ubound(face.vertexes))
-    dim as Vector3 viewVertex(ubound(face.vertexes))
-    dim as Vector3 normal, position, worldVertex
-    dim as integer style = &hffff
-    if wireColor <> 0 or vertexColor <> 0 then
-        for i as integer = 0 to ubound(face.vertexes)
-            worldVertex   = face.vertexes(i)
-            viewVertex(i) = worldToView(worldVertex, camera)
-            if viewVertex(i).z <= 0 then
-                exit sub
-            end if
+    if ubound(clippedVerts) >= 2 then
+        redim vertexes(ubound(clippedVerts))
+        for i as integer = 0 to ubound(clippedVerts)
+            vertexes(i) = worldToView(clippedVerts(i), camera)
         next i
-    end if
-    if doubleSided or normalColor <> 0 then
-        normal = normalize(worldToView(face.normal, camera, true))
-        position = worldToView(face.position, camera)
-        style = iif(dot(normal, position) < 0, &hffff, &hf0f0)
-    end if
-    if wireColor <> 0 or vertexColor <> 0 then
-        for i as integer = 0 to ubound(viewVertex)
-            pixels(i) = viewToScreen(viewVertex(i))
+        if quality = -1 then
+            dist = dot(camera.forward, face.position - camera.position)
+            select case dist
+                case is <  1.000: q = 5
+                case is <  2.718: q = 4
+                case is <  7.389: q = 3
+                case is < 20.085: q = 2
+                case is < 54.598: q = 1
+                case else: q = 0
+            end select
+        end if
+        if ubound(textures) < 0 then exit sub
+        dt = dot(face.normal, world.upward): dt = clamp(dt, -1, 1)
+        texture = textures(int((0.5 + dt * 0.5) * ubound(textures)))
+        if texture = 0 then exit sub
+        redim pixels(ubound(vertexes))
+        for i as integer = 0 to ubound(vertexes)
+            pixels(i) = viewToScreen(vertexes(i))
             pixels(i).x = pmap(pixels(i).x, 0)
             pixels(i).y = pmap(pixels(i).y, 1)
         next i
         ScreenMode.resetView()
-        Rasterizer.drawWireframePoly pixels(), wireColor, style
+        Rasterizer.drawTexturedPoly pixels(), clippedUvs(), texture
         ScreenMode.applyView()
+    end if
+end sub
+sub renderFaceWireframe(byref face as Face3, byref camera as CFrame3, byref world as CFrame3, wireColor as integer = &hffffff, vertexColor as integer = 0, normalColor as integer = 0, doubleSided as boolean = false)
+    dim as Vector2 a, b, c, pixels(any)
+    dim as Vector3 clipped(any), vertexes(any)
+    dim as Vector3 normal, position
+    dim as integer style = &hffff
+
+    clipPoly face.vertexes(), clipped(), camera
+
+    if ubound(clipped) >= 2 then
+        redim vertexes(ubound(clipped))
+        if wireColor <> 0 or vertexColor <> 0 then
+            for i as integer = 0 to ubound(clipped)
+                vertexes(i) = worldToView(clipped(i), camera)
+            next i
+        end if
+        if doubleSided or normalColor <> 0 then
+            normal = normalize(worldToView(face.normal, camera, true))
+            position = worldToView(face.position, camera)
+            style = iif(dot(normal, position) < 0, &hffff, &hf0f0)
+        end if
+        if wireColor <> 0 or vertexColor <> 0 then
+            redim pixels(ubound(vertexes))
+            for i as integer = 0 to ubound(vertexes)
+                pixels(i) = viewToScreen(vertexes(i))
+                pixels(i).x = pmap(pixels(i).x, 0)
+                pixels(i).y = pmap(pixels(i).y, 1)
+            next i
+            ScreenMode.resetView()
+            Rasterizer.drawWireframePoly pixels(), wireColor, style
+            ScreenMode.applyView()
+        end if
     end if
     'if normalColor then
     '    if position.z > 1 and position.z + normal.z > 1 then
@@ -351,7 +514,7 @@ sub selectionSort(keys() as integer, vals() as double)
         end if
     next i
 end sub
-sub bottomUpMergeSort(keys() as integer, vals() as double)
+sub mergeSort(keys() as integer, vals() as double)
 
     dim as double v0(any), v1(any), vSorted(any)
     dim as integer k0(any), k1(any), kSorted(any)
@@ -377,8 +540,8 @@ sub bottomUpMergeSort(keys() as integer, vals() as double)
         k1(i) = keys(1+i+ub0)
     next i
     if ubound(v0) > lbound(v0) or ubound(v1) > lbound(v1) then
-        bottomUpMergeSort k0(), v0()
-        bottomUpMergeSort k1(), v1()
+        mergeSort k0(), v0()
+        mergeSort k1(), v1()
     end if
     
     redim vSorted(ubound(vals))
@@ -422,7 +585,7 @@ sub bottomUpMergeSort(keys() as integer, vals() as double)
 end sub
 sub renderFaces(byref mesh as Mesh3, byref camera as CFrame3, byref world as CFrame3, renderMode as integer, textureMode as integer = -1)
 
-    dim as Face3 sorted(any)
+    dim as Face3 face, sorted(any)
     dim as Vector3 normal, vertex
     dim as double vals(any)
     dim as integer keys(any)
@@ -435,24 +598,26 @@ sub renderFaces(byref mesh as Mesh3, byref camera as CFrame3, byref world as CFr
     end if
 
     for i as integer = 0 to ubound(mesh.faces)
-        vertex = worldToView(mesh.faces(i).position, camera)
-        if vertex.z > 0 then
-            if not mesh.doubleSided then
-                normal = normalize(worldToView(mesh.faces(i).normal, camera, true))
-                if dot(normal, vertex) > 0 then
-                    continue for
-                end if
+        face = mesh.faces(i)
+        if not mesh.doubleSided then
+            normal = normalize(worldToView(face.normal, camera, true))
+            if dot(normal, vertex) > 0 then
+                continue for
             end if
-            array_append(keys, i)
-            array_append(vals, vertex.length)
         end if
+        vertex = worldToView(face.position + face.normal, camera)
+        if vertex.z <= 0 then
+            continue for
+        end if
+        array_append(keys, i)
+        array_append(vals, vertex.length)
     next i
 
-    bottomUpMergeSort keys(), vals()
+    mergeSort keys(), vals()
     foreach(keys, i as integer)
         array_append(sorted, mesh.faces(keys(i)))
     endforeach
-    
+
     select case renderMode
     case RenderModes.Solid
         for i as integer = lbound(keys) to ubound(sorted)
@@ -461,6 +626,10 @@ sub renderFaces(byref mesh as Mesh3, byref camera as CFrame3, byref world as CFr
     case RenderModes.Textured
         for i as integer = lbound(keys) to ubound(sorted)
             renderFaceTextured sorted(i), camera, world, mesh.textures(), textureMode
+            'clipPoly mesh.faces(i).vertexes(), clipped(), camera
+            'if ubound(clipped) >= 2 then
+                'renderFaceTextured clipped(i), camera, world, mesh.textures(), textureMode
+            'end if
         next i
     end select
 end sub
@@ -494,9 +663,9 @@ sub renderBspFaces(node as BspNode3 ptr, faces() as Face3, byref mesh as Mesh3, 
                 end if
             case RenderModes.Wireframe
                 if dt > 0 then
-                    renderFaceWireframe face, camera, world
+                    'renderFaceWireframe face, camera, world
                 else
-                    renderFaceWireframe face, camera, world
+                    'renderFaceWireframe face, camera, world
                 end if
         end select
     end if
@@ -828,7 +997,7 @@ sub drawNormals(byref game as GameSession)
             face = debugObject->mesh->faces(i)
             face.normal = debugObject->vectorToWorld(face.normal)
             face.position = debugObject->pointToWorld(face.position)
-            renderFaceWireframe face, game.camera, game.world, 0, , &hd00000
+            'renderFaceWireframe face, game.camera, game.world, 0, , &hd00000
         next i
     end if
 end sub
@@ -843,7 +1012,7 @@ sub drawVertexes(byref game as GameSession)
             for j as integer = 0 to ubound(face.vertexes)
                 face.vertexes(j) = debugObject->pointToWorld(face.vertexes(j))
             next j
-            renderFaceWireframe face, game.camera, game.world, 0, &h00d000
+            'renderFaceWireframe face, game.camera, game.world, 0, &h00d000
         next i
     end if
 end sub

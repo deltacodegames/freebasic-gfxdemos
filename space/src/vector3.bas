@@ -11,6 +11,22 @@ constructor Vector3(x as double, y as double, z as double)
     this.y = y
     this.z = z
 end constructor
+constructor Vector3(radians as double, axis as integer)
+    select case axis
+    case Axis3.X
+        this.y = cos(radians)
+        this.z = sin(radians)
+        this.x = 0
+    case Axis3.Y
+        this.z = cos(radians)
+        this.x = sin(radians)
+        this.y = 0
+    case Axis3.Z
+        this.x = cos(radians)
+        this.y = sin(radians)
+        this.z = 0
+    end select
+end constructor
 operator int (a as Vector3) as Vector3
     return type(int(a.x), int(a.y), int(a.z))
 end operator
@@ -85,15 +101,15 @@ function rotate overload(a as Vector3, radians as double, axis as integer = 2) a
     dim as double rcos = cos(radians)
     dim as double rsin = sin(radians)
     select case axis
-    case 0
+    case Axis3.X
         v.x = a.x
         v.y = a.y * rcos + a.z * -rsin
         v.z = a.y * rsin + a.z *  rcos
-    case 1
+    case Axis3.Y
         v.y = a.y
         v.z = a.z * rcos + a.x * -rsin
         v.x = a.z * rsin + a.x *  rcos
-    case 2
+    case Axis3.Z
         v.z = a.z
         v.x = a.x * rcos + a.y * -rsin
         v.y = a.x * rsin + a.y *  rcos

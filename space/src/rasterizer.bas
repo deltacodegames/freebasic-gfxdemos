@@ -13,6 +13,21 @@
 declare sub drawFlatTrapezoid(a as Vector2, c as Vector2, b as Vector2, d as Vector2, colr as integer)
 declare sub drawTexturedTrapezoid(a as Vector2, c as Vector2, b as Vector2, d as Vector2, p as Vector2, r as Vector2, q as Vector2, s as Vector2, texture as any ptr, colr as ulong)
 declare sub drawTexturedTrapezoid2(a as Vector2, c as Vector2, b as Vector2, d as Vector2, p as Vector2, r as Vector2, q as Vector2, s as Vector2, texture as any ptr, colr as ulong)
+namespace Rasterizer
+    declare      sub clipPoly overload(vertexes() as Vector2, clipped() as Vector2, side as integer = 0)
+    declare      sub clipPoly overload(vertexes() as Vector2, uvs() as Vector2, clippedVerts() as Vector2, clippedUvs() as Vector2, side as integer = 0)
+    declare      sub drawFlatPoly_clip(vertexes() as Vector2, colr as ulong)
+    declare      sub drawFlatPoly_noClip(vertexes() as Vector2, colr as ulong)
+    declare      sub drawFlatTri(a as Vector2, b as Vector2, c as Vector2, colr as ulong)
+    declare      sub drawTexturedPoly_clip(vertexes() as Vector2, uvs() as Vector2, texture as any ptr)
+    declare      sub drawTexturedPoly_noClip(vertexes() as Vector2, uvs() as Vector2, texture as any ptr)
+    declare      sub drawTexturedTri(a as Vector2, b as Vector2, c as Vector2, u as Vector2, v as Vector2, w as Vector2, texture as any ptr)
+    declare      sub drawTexturedTri2(a as Vector2, b as Vector2, c as Vector2, u as Vector2, v as Vector2, w as Vector2, texture as any ptr)
+    declare      sub drawTexturedTriLowQ(a as Vector2, b as Vector2, c as Vector2, u as Vector2, v as Vector2, e as Vector2, texture as any ptr, quality as integer = 0)
+    declare      sub drawWireframePoly_clip(vertexes() as Vector2, colr as ulong = &hffffff, style as ushort = &hffff)
+    declare      sub drawWireframePoly_noClip(vertexes() as Vector2, colr as ulong = &hffffff, style as ushort = &hffff)
+end namespace
+
 
 function lerpd overload(from as double, goal as double, ratio as double = 0.5) as double
     ratio = iif(ratio < 0, 0, iif(ratio > 1, 1, ratio))
@@ -82,7 +97,7 @@ sub Rasterizer.shutdown()
     next i
     erase buffers
 end sub
-sub Rasterizer.clipPoly overload(vertexes() as Vector2, clipped() as Vector2, side as integer = 0)
+private sub Rasterizer.clipPoly overload(vertexes() as Vector2, clipped() as Vector2, side as integer = 0)
     dim as Vector2 a, b, c, newVerts(any)
     dim as integer x0 = 0, x1 = BUFFER_W-1
     dim as integer y0 = 0, y1 = BUFFER_H-1
@@ -152,7 +167,7 @@ sub Rasterizer.clipPoly overload(vertexes() as Vector2, clipped() as Vector2, si
         clipPoly newVerts(), clipped(), side + 1
     end if
 end sub
-sub Rasterizer.clipPoly overload(vertexes() as Vector2, uvs() as Vector2, clippedVerts() as Vector2, clippedUvs() as Vector2, side as integer = 0)
+private sub Rasterizer.clipPoly overload(vertexes() as Vector2, uvs() as Vector2, clippedVerts() as Vector2, clippedUvs() as Vector2, side as integer = 0)
     dim as Vector2 a, b, c, newVerts(any)
     dim as Vector2 u, v, w, newUvs(any)
     dim as integer x0 = 0, x1 = BUFFER_W-1
@@ -252,16 +267,34 @@ sub Rasterizer.clipPoly overload(vertexes() as Vector2, uvs() as Vector2, clippe
     end if
 end sub
 sub Rasterizer.drawFlatPoly(vertexes() as Vector2, colr as ulong)
+    if clip2d then
+        drawFlatPoly_clip vertexes(), colr
+    else
+        drawFlatPoly_noClip vertexes(), colr
+    end if
+end sub
+private sub Rasterizer.drawFlatPoly_clip(vertexes() as Vector2, colr as ulong)
     dim as Vector2 a, b, c, clipped(any)
     clipPoly vertexes(), clipped()
-    for i as integer = 1 to ubound(clipped)-1
-        a = clipped(0)
-        b = clipped(i)
-        c = clipped(i+1)
+    if ubound(clipped) >= 2 then
+        for i as integer = 1 to ubound(clipped)-1
+            a = clipped(0)
+            b = clipped(i)
+            c = clipped(i+1)
+            drawFlatTri(a, b, c, colr)
+        next i
+    end if
+end sub
+private sub Rasterizer.drawFlatPoly_noClip(vertexes() as Vector2, colr as ulong)
+    dim as Vector2 a, b, c
+    for i as integer = 1 to ubound(vertexes)-1
+        a = vertexes(0)
+        b = vertexes(i)
+        c = vertexes(i+1)
         drawFlatTri(a, b, c, colr)
     next i
 end sub
-sub Rasterizer.drawFlatTri(a as Vector2, b as Vector2, c as Vector2, colr as ulong)
+private sub Rasterizer.drawFlatTri(a as Vector2, b as Vector2, c as Vector2, colr as ulong)
     dim as Vector2 d
     if a.y > b.y then swap a, b
     if a.y > c.y then swap a, c
@@ -286,20 +319,41 @@ sub Rasterizer.drawFlatTri(a as Vector2, b as Vector2, c as Vector2, colr as ulo
     end if
 end sub
 sub Rasterizer.drawTexturedPoly(vertexes() as Vector2, uvs() as Vector2, texture as any ptr)
+    if clip2d then
+        drawTexturedPoly_clip vertexes(), uvs(), texture
+    else
+        drawTexturedPoly_noClip vertexes(), uvs(), texture
+    end if
+end sub
+private sub Rasterizer.drawTexturedPoly_clip(vertexes() as Vector2, uvs() as Vector2, texture as any ptr)
     dim as Vector2 a, b, c, clippedVerts(any)
     dim as Vector2 u, v, w, clippedUvs(any)
     clipPoly vertexes(), uvs(), clippedVerts(), clippedUvs()
-    for i as integer = 1 to ubound(clippedVerts)-1
-        a = clippedVerts(0)
-        b = clippedVerts(i)
-        c = clippedVerts(i+1)
-        u = clippedUvs(0)
-        v = clippedUvs(i)
-        w = clippedUvs(i+1)
+    if ubound(clippedVerts) >= 2 then
+        for i as integer = 1 to ubound(clippedVerts)-1
+            a = clippedVerts(0)
+            b = clippedVerts(i)
+            c = clippedVerts(i+1)
+            u = clippedUvs(0)
+            v = clippedUvs(i)
+            w = clippedUvs(i+1)
+            drawTexturedTri a, b, c, u, v, w, texture
+        next i
+    end if
+end sub
+private sub Rasterizer.drawTexturedPoly_noClip(vertexes() as Vector2, uvs() as Vector2, texture as any ptr)
+    dim as Vector2 a, b, c, u, v, w
+    for i as integer = 1 to ubound(vertexes)-1
+        a = vertexes(0)
+        b = vertexes(i)
+        c = vertexes(i+1)
+        u = uvs(0)
+        v = uvs(i)
+        w = uvs(i+1)
         drawTexturedTri a, b, c, u, v, w, texture
     next i
 end sub
-sub Rasterizer.drawTexturedTri(a as Vector2, b as Vector2, c as Vector2, u as Vector2, v as Vector2, w as Vector2, texture as any ptr)
+private sub Rasterizer.drawTexturedTri(a as Vector2, b as Vector2, c as Vector2, u as Vector2, v as Vector2, w as Vector2, texture as any ptr)
     dim as Vector2 d, x
     if a.y > b.y then swap a, b: swap u, v
     if a.y > c.y then swap a, c: swap u, w
@@ -308,9 +362,8 @@ sub Rasterizer.drawTexturedTri(a as Vector2, b as Vector2, c as Vector2, u as Ve
     b = int(b)
     c = int(c)
     if a.y < b.y and b.y < c.y then
-        d.x = a.x + (b.y - a.y) * (c.x - a.x) / ((c.y - a.y)+1)
-        d.y = b.y
-        x = u + ((w - u) / ((c.y - a.y)+1)) * (b.y - a.y)
+        d = lerp(a, c, (b.y - a.y) / (c.y - a.y))
+        x = lerp(u, w, (b.y - a.y) / (c.y - a.y))
         drawTexturedTrapezoid2 a, a, b, d, u, u, v, x, texture, &hff0000
         drawTexturedTrapezoid2 b, d, c, c, v, x, w, w, texture, &h0000ff
     elseif a.y < b.y and b.y = c.y then
@@ -324,7 +377,7 @@ sub Rasterizer.drawTexturedTri(a as Vector2, b as Vector2, c as Vector2, u as Ve
         line(a.x, a.y)-(b.x, b.y), &hff00ff
     end if
 end sub
-sub Rasterizer.drawTexturedTri2(a as Vector2, b as Vector2, c as Vector2, uva as Vector2, uvb as Vector2, uvc as Vector2, texture as any ptr)
+private sub Rasterizer.drawTexturedTri2(a as Vector2, b as Vector2, c as Vector2, uva as Vector2, uvb as Vector2, uvc as Vector2, texture as any ptr)
     dim as _long_ bpp = BUFFER_BPP, pitch = BUFFER_PITCH
     dim as any ptr buffer, rowStart
     dim as ulong ptr pixel
@@ -380,7 +433,7 @@ sub Rasterizer.drawTexturedTri2(a as Vector2, b as Vector2, c as Vector2, uva as
         screenunlock
     end if
 end sub
-sub Rasterizer.drawTexturedTriLowQ(a as Vector2, b as Vector2, c as Vector2, uva as Vector2, uvb as Vector2, uvc as Vector2, texture as any ptr, quality as integer = 0)
+private sub Rasterizer.drawTexturedTriLowQ(a as Vector2, b as Vector2, c as Vector2, uva as Vector2, uvb as Vector2, uvc as Vector2, texture as any ptr, quality as integer = 0)
     dim as integer q = 2^quality
     dim as any ptr buffer
     dim as ulong colr
@@ -442,15 +495,36 @@ sub Rasterizer.drawTexturedTriLowQ(a as Vector2, b as Vector2, c as Vector2, uva
     end if
 end sub
 sub Rasterizer.drawWireframePoly(vertexes() as Vector2, colr as ulong = &hffffff, style as ushort = &hffff)
+    if clip2d then
+        drawWireframePoly_clip vertexes(), colr, style
+    else
+        drawWireframePoly_noClip vertexes(), colr, style
+    end if
+end sub
+private sub Rasterizer.drawWireframePoly_clip(vertexes() as Vector2, colr as ulong = &hffffff, style as ushort = &hffff)
     dim as Vector2 a, b, clipped(any)
     clipPoly vertexes(), clipped()
-    for i as integer = 0 to ubound(clipped)
-        a = clipped(i)
-        b = iif(i < ubound(clipped), clipped(i + 1), clipped(0))
+    if ubound(clipped) >= 2 then
+        for i as integer = 0 to ubound(clipped)
+            a = clipped(i)
+            b = iif(i < ubound(clipped), clipped(i + 1), clipped(0))
+            line (a.x, a.y)-(b.x, b.y), colr, , style
+        next i
+        for i as integer = 0 to ubound(clipped)
+            a = clipped(i)
+            line (a.x-2, a.y-2)-step(3, 3), &h00ff00, b, style
+        next i
+    end if
+end sub
+private sub Rasterizer.drawWireframePoly_noClip(vertexes() as Vector2, colr as ulong = &hffffff, style as ushort = &hffff)
+    dim as Vector2 a, b
+    for i as integer = 0 to ubound(vertexes)
+        a = vertexes(i)
+        b = iif(i < ubound(vertexes), vertexes(i + 1), vertexes(0))
         line (a.x, a.y)-(b.x, b.y), colr, , style
     next i
-    for i as integer = 0 to ubound(clipped)
-        a = clipped(i)
+    for i as integer = 0 to ubound(vertexes)
+        a = vertexes(i)
         line (a.x-2, a.y-2)-step(3, 3), &h00ff00, b, style
     next i
 end sub
@@ -566,8 +640,8 @@ private sub drawTexturedTrapezoid2(a as Vector2, c as Vector2, b as Vector2, d a
         screenlock
         for y as integer = 0 to h-1
             w = abs(int(xr) - int(xl)) + 1
-            uv = uvl
             uvx = lerp(uvl, uvr, 1/w) - uvl
+            uv = uvl + uvx/w
             pixel = rowStart
             pixel += cast(_long_, int(xl))
             for x as integer = 0 to w-1

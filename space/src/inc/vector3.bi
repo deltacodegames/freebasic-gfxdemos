@@ -18,6 +18,7 @@ type Vector3
     declare static function Zero() as Vector3
     declare constructor()
     declare constructor(x as double, y as double, z as double)
+    declare constructor(radians as double, axis as integer)
     declare function length() as double
     declare function lerped(goal as Vector3, a as double=0.5) as Vector3
     declare function normalized() as Vector3
