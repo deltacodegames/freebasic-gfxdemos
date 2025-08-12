@@ -563,18 +563,6 @@ private sub drawTexturedTrapezoid(a as Vector2, c as Vector2, b as Vector2, d as
     if image.pixdata <> 0 and buffer <> 0 then
         if a.x > c.x then swap a, c: swap p, r
         if b.x > d.x then swap b, d: swap q, s
-        if a.x >= BUFFER_W and b.x >= BUFFER_W-1 then exit sub
-        if a.y >= BUFFER_H and b.y >= BUFFER_W-1 then exit sub
-        if c.x < 0 and d.x < 0 then exit sub
-        if c.y < 0 and d.y < 0 then exit sub
-        a.x = iif(a.x < 0, 0, iif(a.x >= BUFFER_W, BUFFER_W-1, a.x))
-        a.y = iif(a.y < 0, 0, iif(a.y >= BUFFER_H, BUFFER_H-1, a.y))
-        b.x = iif(b.x < 0, 0, iif(b.x >= BUFFER_W, BUFFER_W-1, b.x))
-        b.y = iif(b.y < 0, 0, iif(b.y >= BUFFER_H, BUFFER_H-1, b.y))
-        c.x = iif(c.x < 0, 0, iif(c.x >= BUFFER_W, BUFFER_W-1, c.x))
-        c.y = iif(c.y < 0, 0, iif(c.y >= BUFFER_H, BUFFER_H-1, c.y))
-        d.x = iif(d.x < 0, 0, iif(d.x >= BUFFER_W, BUFFER_W-1, d.x))
-        d.y = iif(d.y < 0, 0, iif(d.y >= BUFFER_H, BUFFER_H-1, d.y))
         top = a.y
         btm = b.y
         h = (btm - top) + 1
@@ -613,18 +601,6 @@ private sub drawTexturedTrapezoid2(a as Vector2, c as Vector2, b as Vector2, d a
     if image.pixdata <> 0 and buffer <> 0 then
         if a.x > c.x then swap a, c: swap p, r
         if b.x > d.x then swap b, d: swap q, s
-        if a.x >= BUFFER_W and b.x >= BUFFER_W-1 then exit sub
-        if a.y >= BUFFER_H and b.y >= BUFFER_W-1 then exit sub
-        if c.x < 0 and d.x < 0 then exit sub
-        if c.y < 0 and d.y < 0 then exit sub
-        a.x = iif(a.x < 0, 0, iif(a.x >= BUFFER_W, BUFFER_W-1, a.x))
-        a.y = iif(a.y < 0, 0, iif(a.y >= BUFFER_H, BUFFER_H-1, a.y))
-        b.x = iif(b.x < 0, 0, iif(b.x >= BUFFER_W, BUFFER_W-1, b.x))
-        b.y = iif(b.y < 0, 0, iif(b.y >= BUFFER_H, BUFFER_H-1, b.y))
-        c.x = iif(c.x < 0, 0, iif(c.x >= BUFFER_W, BUFFER_W-1, c.x))
-        c.y = iif(c.y < 0, 0, iif(c.y >= BUFFER_H, BUFFER_H-1, c.y))
-        d.x = iif(d.x < 0, 0, iif(d.x >= BUFFER_W, BUFFER_W-1, d.x))
-        d.y = iif(d.y < 0, 0, iif(d.y >= BUFFER_H, BUFFER_H-1, d.y))
         top = a.y
         btm = b.y
         h = (btm - top) + 1
