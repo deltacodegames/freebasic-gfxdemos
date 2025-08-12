@@ -94,7 +94,6 @@ sub init(byref game as GameSession)
     randomize
     initScreen()
     Rasterizer.init()
-    Rasterizer.clip2d = false
     
     game.mouse.hide()
     game.mouse.setMode(Mouse2Mode.Viewport)
@@ -269,33 +268,17 @@ end function
 '- Default (1) is 90 degrees
 '=======================================================================
 function viewToScreen(vp as vector3, fov as double = 1) as Vector2
-    dim as Vector2 v2
-    vp.z *= fov
-    v2.x = (vp.x / vp.z) * 2
-    v2.y = (vp.y / vp.z) * 2
-    return v2
+    return (Vector2(vp.x, vp.y) / (vp.z * fov)) * 2
 end function
 
-sub clipPoly overload(vertexes() as Vector3, clipped() as Vector3, byref camera as CFrame3, index as integer = 0)
-    dim as Vector3 normals(0 to ...) = {_
-        camera.forward - camera.rightward * (2 * ScreenMode.ratioh + 2/ScreenMode.w),_
-        camera.forward - camera.upward    * (2 + 4/ScreenMode.h),_
-        camera.forward + camera.rightward * (2 * ScreenMode.ratioh),_
-        camera.forward + camera.upward    * 2,_
-        camera.forward _
-    }
-    dim as Vector3 positions(0 to ...) = {_
-        type(0, 0, 0),_
-        type(0, 0, 0),_
-        type(0, 0, 0),_
-        type(0, 0, 0),_
-        camera.forward _
-    }
+sub clipViewPoly3NearZ overload(vertexes() as Vector3, clippedVerts() as Vector3, byref camera as CFrame3, index as integer = 0)
+    dim as Vector3 normals(0) = { Vector3(0, 0, 1) }
+    dim as Vector3 positions(0) = { Vector3(0, 0, 1/4) }
     dim as Vector3 normal = normalize(normals(index))
-    dim as Vector3 a, b, c, newVerts(any), position
+    dim as Vector3 a, b, c, newVerts(any), position, u3, v3, w3
     dim as double dta, dtb
 
-    position = camera.position + positions(index)
+    position = positions(index)
     
     for i as integer = 0 to ubound(vertexes)
         a = vertexes(i)
@@ -314,35 +297,23 @@ sub clipPoly overload(vertexes() as Vector3, clipped() as Vector3, byref camera 
         end if
     next i
     if index < ubound(normals) then
-        clipPoly newVerts(), clipped(), camera, index + 1
+        clipViewPoly3NearZ newVerts(), clippedVerts(), camera, index + 1
     else
         for i as integer = 0 to ubound(newVerts)
-            array_append(clipped, newVerts(i))
+            array_append(clippedVerts, newVerts(i))
         next i
     end if
 end sub
 
-sub clipPoly overload(vertexes() as Vector3, uvs() as Vector2, clippedVerts() as Vector3, clippedUvs() as Vector2, byref camera as CFrame3, index as integer = 0)
-    dim as Vector3 normals(0 to ...) = {_
-        camera.forward - camera.rightward * (2 * ScreenMode.ratioh + 2/ScreenMode.w),_
-        camera.forward - camera.upward    * (2 + 4/ScreenMode.h),_
-        camera.forward + camera.rightward * (2 * ScreenMode.ratioh),_
-        camera.forward + camera.upward    * 2,_
-        camera.forward _
-    }
-    dim as Vector3 positions(0 to ...) = {_
-        type(0, 0, 0),_
-        type(0, 0, 0),_
-        type(0, 0, 0),_
-        type(0, 0, 0),_
-        camera.forward _
-    }
+sub clipViewPoly3NearZ overload(vertexes() as Vector3, uvs() as Vector2, clippedVerts() as Vector3, clippedUvs() as Vector2, byref camera as CFrame3, index as integer = 0)
+    dim as Vector3 normals(0) = { Vector3(0, 0, 1) }
+    dim as Vector3 positions(0) = { Vector3(0, 0, 1/4) }
     dim as Vector3 normal = normalize(normals(index))
-    dim as Vector3 a, b, c, newVerts(any), position
+    dim as Vector3 a, b, c, newVerts(any), position, u3, v3, w3
     dim as Vector2 newUvs(any), u, v, w
     dim as double dta, dtb
 
-    position = camera.position + positions(index)
+    position = positions(index)
     
     for i as integer = 0 to ubound(vertexes)
         a = vertexes(i)
@@ -368,7 +339,7 @@ sub clipPoly overload(vertexes() as Vector3, uvs() as Vector2, clippedVerts() as
         end if
     next i
     if index < ubound(normals) then
-        clipPoly newVerts(), newUvs(), clippedVerts(), clippedUvs(), camera, index + 1
+        clipViewPoly3NearZ newVerts(), newUvs(), clippedVerts(), clippedUvs(), camera, index + 1
     else
         for i as integer = 0 to ubound(newVerts)
             array_append(clippedVerts, newVerts(i))
@@ -383,13 +354,14 @@ sub renderFaceSolid(byref face as Face3, byref camera as CFrame3, byref world as
     dim as integer colr, cr, cg, cb
     dim as double dt, value
 
-    clipPoly face.vertexes(), clipped(), camera
+    redim vertexes(ubound(face.vertexes))
+    for i as integer = 0 to ubound(face.vertexes)
+        vertexes(i) = worldToView(face.vertexes(i), camera)
+    next i
+    
+    clipViewPoly3NearZ vertexes(), clipped(), camera
 
     if ubound(clipped) >= 2 then
-        redim vertexes(ubound(clipped))
-        for i as integer = 0 to ubound(clipped)
-            vertexes(i) = worldToView(clipped(i), camera)
-        next i
         cr = rgb_r(face.colr)
         cg = rgb_g(face.colr)
         cb = rgb_b(face.colr)
@@ -400,9 +372,9 @@ sub renderFaceSolid(byref face as Face3, byref camera as CFrame3, byref world as
             clamp(cg+value, 0, 255),_
             clamp(cb+value, 0, 255) _
         )
-        redim pixels(ubound(vertexes))
-        for i as integer = 0 to ubound(vertexes)
-            pixels(i) = viewToScreen(vertexes(i))
+        redim pixels(ubound(clipped))
+        for i as integer = 0 to ubound(clipped)
+            pixels(i) = viewToScreen(clipped(i))
             pixels(i).x = pmap(pixels(i).x, 0)
             pixels(i).y = pmap(pixels(i).y, 1)
         next i
@@ -412,24 +384,20 @@ sub renderFaceSolid(byref face as Face3, byref camera as CFrame3, byref world as
     end if
 end sub
 sub renderFaceTextured(byref face as Face3, byref camera as CFrame3, byref world as CFrame3, textures() as any ptr, quality as integer = -1)
-    dim as Vector2 a, b, c, clippedUvs(any), pixels(any)
-    dim as Vector2 u, v, w
+    dim as Vector2 clippedUvs(any), pixels(any)
     dim as Vector3 clippedVerts(any), vertexes(any)
-    dim as any ptr srcRow, dstRow, texture
-    dim as ulong ptr src, dst
-    dim as ulong colr
-    dim as long ubr, ubg, ubb
-    dim as long value
+    dim as any ptr texture
     dim as double dist, dt
     dim as integer q = quality
     
-    clipPoly face.vertexes(), face.uvs(), clippedVerts(), clippedUvs(), camera
+    redim vertexes(ubound(face.vertexes))
+    for i as integer = 0 to ubound(face.vertexes)
+        vertexes(i) = worldToView(face.vertexes(i), camera)
+    next i
+    
+    clipViewPoly3NearZ vertexes(), face.uvs(), clippedVerts(), clippedUvs(), camera
 
     if ubound(clippedVerts) >= 2 then
-        redim vertexes(ubound(clippedVerts))
-        for i as integer = 0 to ubound(clippedVerts)
-            vertexes(i) = worldToView(clippedVerts(i), camera)
-        next i
         if quality = -1 then
             dist = dot(camera.forward, face.position - camera.position)
             select case dist
@@ -445,9 +413,9 @@ sub renderFaceTextured(byref face as Face3, byref camera as CFrame3, byref world
         dt = dot(face.normal, world.upward): dt = clamp(dt, -1, 1)
         texture = textures(int((0.5 + dt * 0.5) * ubound(textures)))
         if texture = 0 then exit sub
-        redim pixels(ubound(vertexes))
-        for i as integer = 0 to ubound(vertexes)
-            pixels(i) = viewToScreen(vertexes(i))
+        redim pixels(ubound(clippedVerts))
+        for i as integer = 0 to ubound(clippedVerts)
+            pixels(i) = viewToScreen(clippedVerts(i))
             pixels(i).x = pmap(pixels(i).x, 0)
             pixels(i).y = pmap(pixels(i).y, 1)
         next i
@@ -462,21 +430,21 @@ sub renderFaceWireframe(byref face as Face3, byref camera as CFrame3, byref worl
     dim as Vector3 normal, position
     dim as integer style = &hffff
 
-    clipPoly face.vertexes(), clipped(), camera
+    if wireColor <> 0 or vertexColor <> 0 then
 
-    if ubound(clipped) >= 2 then
-        redim vertexes(ubound(clipped))
-        if wireColor <> 0 or vertexColor <> 0 then
-            for i as integer = 0 to ubound(clipped)
-                vertexes(i) = worldToView(clipped(i), camera)
-            next i
-        end if
-        if doubleSided or normalColor <> 0 then
-            normal = normalize(worldToView(face.normal, camera, true))
-            position = worldToView(face.position, camera)
-            style = iif(dot(normal, position) < 0, &hffff, &hf0f0)
-        end if
-        if wireColor <> 0 or vertexColor <> 0 then
+        redim vertexes(ubound(face.vertexes))
+        for i as integer = 0 to ubound(face.vertexes)
+            vertexes(i) = worldToView(face.vertexes(i), camera)
+        next i
+        
+        clipViewPoly3NearZ vertexes(), clipped(), camera
+        
+        if ubound(clipped) >= 2 then
+            if doubleSided or normalColor <> 0 then
+                normal = normalize(worldToView(face.normal, camera, true))
+                position = worldToView(face.position, camera)
+                style = iif(dot(normal, position) < 0, &hffff, &hf0f0)
+            end if
             redim pixels(ubound(vertexes))
             for i as integer = 0 to ubound(vertexes)
                 pixels(i) = viewToScreen(vertexes(i))
@@ -606,9 +574,9 @@ sub renderFaces(byref mesh as Mesh3, byref camera as CFrame3, byref world as CFr
             end if
         end if
         vertex = worldToView(face.position + face.normal, camera)
-        if vertex.z <= 0 then
-            continue for
-        end if
+        'if vertex.z <= 0 then
+        '    continue for
+        'end if
         array_append(keys, i)
         array_append(vals, vertex.length)
     next i
@@ -626,10 +594,6 @@ sub renderFaces(byref mesh as Mesh3, byref camera as CFrame3, byref world as CFr
     case RenderModes.Textured
         for i as integer = lbound(keys) to ubound(sorted)
             renderFaceTextured sorted(i), camera, world, mesh.textures(), textureMode
-            'clipPoly mesh.faces(i).vertexes(), clipped(), camera
-            'if ubound(clipped) >= 2 then
-                'renderFaceTextured clipped(i), camera, world, mesh.textures(), textureMode
-            'end if
         next i
     end select
 end sub

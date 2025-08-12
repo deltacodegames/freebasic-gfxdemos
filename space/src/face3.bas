@@ -13,9 +13,17 @@ function Face3.addUv(uv as Vector2) as Face3
     array_append(uvs, uv)
     return this
 end function
+function Face3.addUvId(uvId as ushort) as Face3
+    array_append(uvIds, uvId)
+    return this
+end function
 function Face3.addVertex(vertex as Vector3) as Face3
     array_append(vertexes, vertex)
     calcPosition()
+    return this
+end function
+function Face3.addVertexId(vertexId as ushort) as Face3
+    array_append(vertexIds, vertexId)
     return this
 end function
 function Face3.calcNormal() as Face3

@@ -21,18 +21,18 @@ end constructor
 '==============================================================================
 '= METHOD
 '==============================================================================
-function Mesh3.addFace(face as Face3) as Mesh3
+function Mesh3.addFace(face as Face3) as ushort
     array_append(faces, face)
     faces(ubound(faces)).id = ubound(faces)
-    return this
+    return ubound(faces)
 end function
-function Mesh3.addVertex(vertex as Vector3) as Mesh3
+function Mesh3.addVertex(vertex as Vector3) as ushort
     array_append(vertexes, vertex)
-    return this
+    return ubound(vertexes)
 end function
-function Mesh3.addTexture(texture as any ptr) as Mesh3
+function Mesh3.addTexture(texture as any ptr) as ushort
     array_append(textures, texture)
-    return this
+    return ubound(textures)
 end function
 function Mesh3.buildBsp() as Mesh3
     dim as Face3 collection(any)
@@ -172,6 +172,24 @@ function Mesh3.deleteFaces() as Mesh3
     return this
 end function
 function Mesh3.getBounds(byref a as Vector3, byref b as Vector3) as Mesh3
+    return this
+end function
+function Mesh3.getFace(faceId as ushort) as Face3
+    return faces(faceId)
+end function
+function Mesh3.getTexture(textureId as ushort) as any ptr
+    return textures(textureId)
+end function
+function Mesh3.getVertex(vertexId as ushort) as Vector3
+    return vertexes(vertexId)
+end function
+function Mesh3.getVertexesByFaceId(faceId as ushort, destVerts() as Vector3) as Mesh3
+    dim as Face3 face
+    face = faces(faceId)
+    redim destVerts(ubound(face.vertexIds))
+    for i as integer = 0 to ubound(face.vertexIds)
+        destVerts(i) = vertexes(face.vertexIds(i))
+    next i
     return this
 end function
 function Mesh3.paintFaces(colr as integer) as Mesh3

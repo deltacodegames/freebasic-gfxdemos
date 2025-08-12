@@ -16,15 +16,19 @@ type Mesh3
     vertexes(any) as Vector3
     declare constructor ()
     declare constructor (sid as string)
-    declare function addFace(face as Face3) as Mesh3
-    declare function addVertex(vertex as Vector3) as Mesh3
-    declare function addTexture(texture as any ptr) as Mesh3
+    declare function addFace(face as Face3) as ushort
+    declare function addVertex(vertex as Vector3) as ushort
+    declare function addTexture(texture as any ptr) as ushort
     declare function buildBsp() as Mesh3
     declare function buildBsp(collection() as Face3) as BspNode3 ptr
     declare function calcNormals() as Mesh3
     declare function centerGeometry() as Mesh3
     declare function deleteFaces() as Mesh3
     declare function getBounds(byref a as Vector3, byref b as Vector3) as Mesh3
+    declare function getFace(faceId as ushort) as Face3
+    declare function getTexture(textureId as ushort) as any ptr
+    declare function getVertex(vertexId as ushort) as Vector3
+    declare function getVertexesByFaceId(faceId as ushort, destVerts() as Vector3) as Mesh3
     declare function paintFaces(colr as integer) as Mesh3
     declare function splitMesh(splitterNormal as Vector3, splitterPosition as Vector3) as Mesh3 ptr
 end type
