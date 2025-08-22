@@ -11,8 +11,8 @@
 #endmacro
 
 declare sub drawFlatTrapezoid(a as Vector2, c as Vector2, b as Vector2, d as Vector2, colr as integer)
+declare sub drawTexturedHorizontalLine(rowStart as any ptr, x0 as integer, x1 as integer, u as Vector2, v as Vector2, image as Image32)
 declare sub drawTexturedTrapezoid overload(a as Vector2, c as Vector2, b as Vector2, d as Vector2, p as Vector2, r as Vector2, q as Vector2, s as Vector2, texture as any ptr, colr as ulong)
-declare sub drawTexturedTrapezoidSlow overload(a as Vector2, c as Vector2, b as Vector2, d as Vector2, p as Vector2, r as Vector2, q as Vector2, s as Vector2, texture as any ptr, colr as ulong)
 namespace Rasterizer
     declare      sub clipPoly overload(vertexes() as Vector2, clipped() as Vector2, side as integer = 0)
     declare      sub drawFlatTri(a as Vector2, b as Vector2, c as Vector2, colr as ulong)
@@ -217,12 +217,12 @@ private sub Rasterizer.drawTexturedTri(a as Vector2, b as Vector2, c as Vector2,
     if a.y < b.y and b.y < c.y then
         d = lerp(a, c, (b.y - a.y) / (c.y - a.y))
         x = lerp(u, w, (b.y - a.y) / (c.y - a.y))
-        drawTexturedTrapezoidSlow a, a, b, d, u, u, v, x, texture, &hff0000
-        drawTexturedTrapezoidSlow b, d, c, c, v, x, w, w, texture, &h0000ff
+        drawTexturedTrapezoid a, a, b, d, u, u, v, x, texture, &hff0000
+        drawTexturedTrapezoid b, d, c, c, v, x, w, w, texture, &h0000ff
     elseif a.y < b.y and b.y = c.y then
-        drawTexturedTrapezoidSlow a, a, b, c, u, u, v, w, texture, &hffff00
+        drawTexturedTrapezoid a, a, b, c, u, u, v, w, texture, &hffff00
     elseif a.y = b.y and b.y < c.y then
-        drawTexturedTrapezoidSlow a, b, c, c, u, v, w, w, texture, &h00ffff
+        drawTexturedTrapezoid a, b, c, c, u, v, w, w, texture, &h00ffff
     else
         if a.x < b.x then swap a, b
         if a.x < c.x then swap a, c
@@ -266,15 +266,37 @@ private sub drawFlatTrapezoid(a as Vector2, c as Vector2, b as Vector2, d as Vec
     next i
     screenunlock
 end sub
+private sub drawTexturedHorizontalLine(rowStart as any ptr, x0 as integer, x1 as integer, u as Vector2, v as Vector2, image as Image32)
+    using Rasterizer
+    dim as Vector2 uv, duv
+    dim as integer cx0, cx1, w
+    dim as ulong ptr pixel
+    dim as double ratio
+
+    if x0 > x1 then swap x0, x1: swap u, v
+
+    w     = x1 - x0 + 1
+    cx0   = iif(x0 >= 0, x0, 0)
+    cx1   = iif(x1 <= BUFFER_W-1, x1, BUFFER_W-1)
+    ratio = (0.5 + cx0 - x0) / w
+    uv    = lerp(u, v, ratio)
+    duv   = (v - u) / w
+    
+    pixel = rowStart
+    pixel += cast(_long_, cx0)
+    for x as integer = cx0 to cx1
+        *pixel = image.getPixel(uv.x, uv.y)
+        pixel += 1
+        uv += duv
+    next x
+end sub
 private sub drawTexturedTrapezoid(a as Vector2, c as Vector2, b as Vector2, d as Vector2, p as Vector2, r as Vector2, q as Vector2, s as Vector2, texture as any ptr, colr as ulong)
     using Rasterizer
     dim as Image32 image
-    dim as Vector2 uv, uvx, uvl, uvr, uvi, uvj
-    dim as double xl, xli, xr, xri
-    dim as integer btm, top, w, h, x, y
-    dim as _long_ bpp = BUFFER_BPP, pitch = BUFFER_PITCH
+    dim as Vector2 uv0, uv1, duv0, duv1
     dim as any ptr buffer, rowStart
-    dim as ulong ptr pixel
+    dim as integer ctop, cbtm, h, top, btm
+    dim as double  perc, skip, dx0, dx1, x0, x1
     image.readInfo(texture)
     buffer = screenptr
     if image.pixdata <> 0 and buffer <> 0 then
@@ -282,76 +304,28 @@ private sub drawTexturedTrapezoid(a as Vector2, c as Vector2, b as Vector2, d as
         if b.x > d.x then swap b, d: swap q, s
         top = a.y
         btm = b.y
-        h = (btm - top) + 1
-        xl = a.x
-        xr = c.x
-        xli = lerpd(a.x, b.x, 1/h) - a.x
-        xri = lerpd(c.x, d.x, 1/h) - c.x
-        uvl = p
-        uvr = r
-        uvi = lerp(p, q, 1/h) - p
-        uvj = lerp(r, s, 1/h) - r
-        rowStart = buffer + top*pitch
+        h   = btm - top + 1
+        ctop = iif(top >= 0, top, 0)
+        cbtm = iif(btm <= BUFFER_H-1, btm, BUFFER_H-1)
+        skip = ctop - top
+        perc = (0.5 + skip) / h
+        x0 = lerpd(a.x, b.x, perc)
+        x1 = lerpd(c.x, d.x, perc)
+        dx0 = (b.x - a.x) / h
+        dx1 = (d.x - c.x) / h
+        uv0 = lerp(p, q, perc)
+        uv1 = lerp(r, s, perc)
+        duv0 = (q - p) / h
+        duv1 = (s - r) / h
+        rowStart = buffer + ctop*BUFFER_PITCH
         screenlock
-        for y as integer = 0 to h-1
-            w = abs(int(xr) - int(xl)) + 1
-            uvx = lerp(uvl, uvr, 1/w) - uvl
-            uv = uvl + uvx/w
-            pixel = rowStart
-            pixel += cast(_long_, int(xl))
-            for x as integer = 0 to w-1
-                *pixel = image.getPixel(uv.x, uv.y)
-                uv += uvx
-                pixel += 1
-            next x
-            xl += xli
-            xr += xri
-            uvl += uvi
-            uvr += uvj
-            rowStart += pitch
-        next y
-        screenunlock
-    end if
-end sub
-private sub drawTexturedTrapezoidSlow(a as Vector2, c as Vector2, b as Vector2, d as Vector2, p as Vector2, r as Vector2, q as Vector2, s as Vector2, texture as any ptr, colr as ulong)
-    using Rasterizer
-    dim as Image32 image
-    dim as Vector2 uv, uvl, uvr
-    dim as double ratio
-    dim as integer btm, top, xl, xr, w, h, x, y
-    dim as integer x0, x1, y0, y1
-    dim as _long_ bpp = BUFFER_BPP, pitch = BUFFER_PITCH
-    dim as any ptr buffer, rowStart
-    dim as ulong ptr pixel
-    image.readInfo(texture)
-    buffer = screenptr
-    if image.pixdata <> 0 and buffer <> 0 then
-        if a.x > c.x then swap a, c: swap p, r
-        if b.x > d.x then swap b, d: swap q, s
-        top = int(a.y)
-        btm = int(b.y)
-        y0 = iif(top >= 0, top, 0)
-        y1 = iif(btm <= BUFFER_H-1, btm, BUFFER_H-1)
-        h = (btm - top) + 1
-        rowStart = buffer + y0*pitch
-        screenlock
-        for y as integer = y0 to y1
-            ratio = (y - top) / h
-            uvl = lerp(p, q, ratio)
-            uvr = lerp(r, s, ratio)
-            xl = int(lerpd(a.x, b.x, ratio))
-            xr = int(lerpd(c.x, d.x, ratio))
-            x0 = iif(xl >= 0, xl, 0)
-            x1 = iif(xr <= BUFFER_W-1, xr, BUFFER_W-1)
-            w = abs(xr - xl) + 1
-            pixel = rowStart + x0*bpp
-            for x as integer = x0 to x1
-                ratio = (x - int(xl)) / w
-                uv = lerp(uvl, uvr, ratio)
-                *pixel = image.getPixelSafe(uv.x, uv.y)
-                pixel += 1
-            next x
-            rowStart += pitch
+        for y as integer = ctop to cbtm
+            drawTexturedHorizontalLine rowStart, int(x0), int(x1), uv0, uv1, image
+            x0 += dx0
+            x1 += dx1
+            uv0 += duv0
+            uv1 += duv1
+            rowStart += BUFFER_PITCH
         next y
         screenunlock
     end if
