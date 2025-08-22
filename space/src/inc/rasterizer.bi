@@ -31,6 +31,7 @@ namespace Rasterizer
     declare function getBuffer         (index as integer) as Buffer2 ptr
     declare      sub drawFlatPoly      (vertexes() as Vector2, colr as ulong)
     declare      sub drawTexturedPoly  overload (vertexes() as Vector2, uvs() as Vector2, texture as any ptr)
+    declare      sub drawTexturedPoly  overload (vertexes() as Vector2, uvs() as Vector3, texture as any ptr)
     declare      sub drawWireframePoly (vertexes() as Vector2, colr as ulong = &hffffff, style as ushort = &hffff)
     declare function init              () as integer
     declare function setBuffer         (index as integer) as integer

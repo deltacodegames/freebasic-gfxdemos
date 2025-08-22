@@ -424,6 +424,51 @@ sub renderFaceTextured(byref face as Face3, byref camera as CFrame3, byref world
         ScreenMode.applyView()
     end if
 end sub
+sub renderFaceTexturedPC(byref face as Face3, byref camera as CFrame3, byref world as CFrame3, textures() as any ptr, quality as integer = -1)
+    dim as Vector2 clippedUvs(any), pixels(any)
+    dim as Vector3 clippedVerts(any), uvs(any), vertexes(any)
+    dim as any ptr texture
+    dim as double dist, dt
+    dim as integer q = quality
+    
+    redim vertexes(ubound(face.vertexes))
+    for i as integer = 0 to ubound(face.vertexes)
+        vertexes(i) = worldToView(face.vertexes(i), camera)
+    next i
+    
+    clipViewPoly3NearZ vertexes(), face.uvs(), clippedVerts(), clippedUvs(), camera
+
+    if ubound(clippedVerts) >= 2 then
+        if quality = -1 then
+            dist = dot(camera.forward, face.position - camera.position)
+            select case dist
+                case is <  1.000: q = 5
+                case is <  2.718: q = 4
+                case is <  7.389: q = 3
+                case is < 20.085: q = 2
+                case is < 54.598: q = 1
+                case else: q = 0
+            end select
+        end if
+        if ubound(textures) < 0 then exit sub
+        dt = dot(face.normal, world.upward): dt = clamp(dt, -1, 1)
+        texture = textures(int((0.5 + dt * 0.5) * ubound(textures)))
+        if texture = 0 then exit sub
+        redim pixels(ubound(clippedVerts))
+        redim uvs(ubound(clippedVerts))
+        for i as integer = 0 to ubound(clippedVerts)
+            pixels(i) = viewToScreen(clippedVerts(i))
+            pixels(i).x = pmap(pixels(i).x, 0)
+            pixels(i).y = pmap(pixels(i).y, 1)
+            uvs(i).x = clippedUvs(i).x
+            uvs(i).y = clippedUvs(i).y
+            uvs(i).z = clippedVerts(i).z
+        next i
+        ScreenMode.resetView()
+        Rasterizer.drawTexturedPoly pixels(), uvs(), texture
+        ScreenMode.applyView()
+    end if
+end sub
 sub renderFaceWireframe(byref face as Face3, byref camera as CFrame3, byref world as CFrame3, wireColor as integer = &hffffff, vertexColor as integer = 0, normalColor as integer = 0, doubleSided as boolean = false)
     dim as Vector2 a, b, c, pixels(any)
     dim as Vector3 clipped(any), vertexes(any)
@@ -595,6 +640,10 @@ sub renderFaces(byref mesh as Mesh3, byref camera as CFrame3, byref world as CFr
         for i as integer = lbound(keys) to ubound(sorted)
             renderFaceTextured sorted(i), camera, world, mesh.textures(), textureMode
         next i
+    case RenderModes.TexturedPC
+        for i as integer = lbound(keys) to ubound(sorted)
+            renderFaceTexturedPC sorted(i), camera, world, mesh.textures(), textureMode
+        next i
     end select
 end sub
 sub renderBspFaces(node as BspNode3 ptr, faces() as Face3, byref mesh as Mesh3, byref camera as CFrame3, byref world as CFrame3, renderMode as integer, textureMode as integer = -1)
@@ -622,6 +671,12 @@ sub renderBspFaces(node as BspNode3 ptr, faces() as Face3, byref mesh as Mesh3, 
             case RenderModes.Textured
                 if ubound(face.uvs) >= 0 and ubound(mesh.textures) > -1 then
                     renderFaceTextured face, camera, world, mesh.textures(), textureMode
+                else
+                    renderFaceSolid face, camera, world
+                end if
+            case RenderModes.TexturedPC
+                if ubound(face.uvs) >= 0 and ubound(mesh.textures) > -1 then
+                    renderFaceTexturedPC face, camera, world, mesh.textures(), textureMode
                 else
                     renderFaceSolid face, camera, world
                 end if
@@ -813,6 +868,13 @@ sub main(game as GameSession)
         if game.keyPress(SC_F2) then setDebugLevel(2, game)
         if game.keyPress(SC_F3) then setDebugLevel(3, game)
         if game.keyPress(SC_F4) then setDebugLevel(4, game)
+        if game.keyPress(SC_F5) then
+            if game.renderMode = RenderModes.Textured then
+                game.renderMode = RenderModes.TexturedPC
+            else
+                game.renderMode = RenderModes.Textured
+            end if
+        end if
 
         if game.keyPress(SC_SLASH ) then textureMode = TextureModes.Auto
         if game.keyPress(SC_COMMA ) then textureMode -= iif(textureMode > TextureModes.Best , 1, 0)
@@ -1017,13 +1079,15 @@ sub printDebugInfo(byref game as GameSession)
     dim as integer row = 15
     dim as string buffer = space(21)
     select case game.renderMode
-        case RenderModes.Solid    : mid(buffer, 2) = "Solid"
-        case RenderModes.Textured : mid(buffer, 2) = "Texture"
-        case RenderModes.Wireframe: mid(buffer, 2) = "Wireframe"
+        case RenderModes.Solid     : mid(buffer, 2) = "Solid"
+        case RenderModes.Textured  : mid(buffer, 2) = "Texture"
+        case RenderModes.TexturedPC: mid(buffer, 2) = "Texture Persp Corr"
+        case RenderModes.Wireframe : mid(buffer, 2) = "Wireframe"
     end select
     printStringBlock(row, 1, buffer, "RENDER MODE", "_", "")
 
-    if game.renderMode = RenderModes.Textured then
+    if game.renderMode = RenderModes.Textured _
+    or game.renderMode = RenderModes.TexturedPC then
         buffer = space(21)
         if game.textureMode = TextureModes.Auto then
             mid(buffer,  2) = "Auto"

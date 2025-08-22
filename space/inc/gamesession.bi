@@ -37,6 +37,7 @@ enum RenderModes
     None
     Solid
     Textured
+    TexturedPC
     Wireframe
     WireframeVertexes
 end enum

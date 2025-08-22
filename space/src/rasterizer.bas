@@ -11,12 +11,15 @@
 #endmacro
 
 declare sub drawFlatTrapezoid(a as Vector2, c as Vector2, b as Vector2, d as Vector2, colr as integer)
-declare sub drawTexturedHorizontalLine(rowStart as any ptr, x0 as integer, x1 as integer, u as Vector2, v as Vector2, image as Image32)
-declare sub drawTexturedTrapezoid overload(a as Vector2, c as Vector2, b as Vector2, d as Vector2, p as Vector2, r as Vector2, q as Vector2, s as Vector2, texture as any ptr, colr as ulong)
+declare sub drawTexturedHorizontalLine overload(rowStart as any ptr, x0 as integer, x1 as integer, u as Vector2, v as Vector2, image as Image32)
+declare sub drawTexturedHorizontalLine overload(rowStart as any ptr, x0 as integer, x1 as integer, u as Vector3, v as Vector3, image as Image32)
+declare sub drawTexturedTrapezoid overload(a as Vector2, c as Vector2, b as Vector2, d as Vector2, p as Vector2, r as Vector2, q as Vector2, s as Vector2, texture as any ptr)
+declare sub drawTexturedTrapezoid overload(a as Vector2, c as Vector2, b as Vector2, d as Vector2, p as Vector3, r as Vector3, q as Vector3, s as Vector3, texture as any ptr)
 namespace Rasterizer
     declare      sub clipPoly overload(vertexes() as Vector2, clipped() as Vector2, side as integer = 0)
     declare      sub drawFlatTri(a as Vector2, b as Vector2, c as Vector2, colr as ulong)
     declare      sub drawTexturedTri overload(a as Vector2, b as Vector2, c as Vector2, u as Vector2, v as Vector2, w as Vector2, texture as any ptr)
+    declare      sub drawTexturedTri overload(a as Vector2, b as Vector2, c as Vector2, u as Vector3, v as Vector3, w as Vector3, texture as any ptr)
 end namespace
 
 
@@ -206,6 +209,19 @@ sub Rasterizer.drawTexturedPoly(vertexes() as Vector2, uvs() as Vector2, texture
         drawTexturedTri a, b, c, u, v, w, texture
     next i
 end sub
+sub Rasterizer.drawTexturedPoly(vertexes() as Vector2, uvs() as Vector3, texture as any ptr)
+    dim as Vector2 a, b, c
+    dim as Vector3 u, v, w
+    for i as integer = 1 to ubound(vertexes)-1
+        a = vertexes(0)
+        b = vertexes(i)
+        c = vertexes(i+1)
+        u = uvs(0)
+        v = uvs(i)
+        w = uvs(i+1)
+        drawTexturedTri a, b, c, u, v, w, texture
+    next i
+end sub
 private sub Rasterizer.drawTexturedTri(a as Vector2, b as Vector2, c as Vector2, u as Vector2, v as Vector2, w as Vector2, texture as any ptr)
     dim as Vector2 d, x
     if a.y > b.y then swap a, b: swap u, v
@@ -217,12 +233,40 @@ private sub Rasterizer.drawTexturedTri(a as Vector2, b as Vector2, c as Vector2,
     if a.y < b.y and b.y < c.y then
         d = lerp(a, c, (b.y - a.y) / (c.y - a.y))
         x = lerp(u, w, (b.y - a.y) / (c.y - a.y))
-        drawTexturedTrapezoid a, a, b, d, u, u, v, x, texture, &hff0000
-        drawTexturedTrapezoid b, d, c, c, v, x, w, w, texture, &h0000ff
+        drawTexturedTrapezoid a, a, b, d, u, u, v, x, texture
+        drawTexturedTrapezoid b, d, c, c, v, x, w, w, texture
     elseif a.y < b.y and b.y = c.y then
-        drawTexturedTrapezoid a, a, b, c, u, u, v, w, texture, &hffff00
+        drawTexturedTrapezoid a, a, b, c, u, u, v, w, texture
     elseif a.y = b.y and b.y < c.y then
-        drawTexturedTrapezoid a, b, c, c, u, v, w, w, texture, &h00ffff
+        drawTexturedTrapezoid a, b, c, c, u, v, w, w, texture
+    else
+        if a.x < b.x then swap a, b
+        if a.x < c.x then swap a, c
+        if b.x < c.x then swap b, c
+        line(a.x, a.y)-(b.x, b.y), &hff00ff
+    end if
+end sub
+private sub Rasterizer.drawTexturedTri(a as Vector2, b as Vector2, c as Vector2, u as Vector3, v as Vector3, w as Vector3, texture as any ptr)
+    dim as Vector2 d
+    dim as Vector3 x
+    if a.y > b.y then swap a, b: swap u, v
+    if a.y > c.y then swap a, c: swap u, w
+    if b.y > c.y then swap b, c: swap v, w
+    a = int(a)
+    b = int(b)
+    c = int(c)
+    u = type(u.x, u.y, 1) / u.z
+    v = type(v.x, v.y, 1) / v.z
+    w = type(w.x, w.y, 1) / w.z
+    if a.y < b.y and b.y < c.y then
+        d = lerp(a, c, (b.y - a.y) / (c.y - a.y))
+        x = lerp(u, w, (b.y - a.y) / (c.y - a.y))
+        drawTexturedTrapezoid a, a, b, d, u, u, v, x, texture
+        drawTexturedTrapezoid b, d, c, c, v, x, w, w, texture
+    elseif a.y < b.y and b.y = c.y then
+        drawTexturedTrapezoid a, a, b, c, u, u, v, w, texture
+    elseif a.y = b.y and b.y < c.y then
+        drawTexturedTrapezoid a, b, c, c, u, v, w, w, texture
     else
         if a.x < b.x then swap a, b
         if a.x < c.x then swap a, c
@@ -290,10 +334,74 @@ private sub drawTexturedHorizontalLine(rowStart as any ptr, x0 as integer, x1 as
         uv += duv
     next x
 end sub
-private sub drawTexturedTrapezoid(a as Vector2, c as Vector2, b as Vector2, d as Vector2, p as Vector2, r as Vector2, q as Vector2, s as Vector2, texture as any ptr, colr as ulong)
+private sub drawTexturedHorizontalLine(rowStart as any ptr, x0 as integer, x1 as integer, u as Vector3, v as Vector3, image as Image32)
+    using Rasterizer
+    dim as Vector3 uv, duv
+    dim as integer cx0, cx1, w
+    dim as ulong ptr pixel
+    dim as double ratio
+
+    if x0 > x1 then swap x0, x1: swap u, v
+
+    w     = x1 - x0 + 1
+    cx0   = iif(x0 >= 0, x0, 0)
+    cx1   = iif(x1 <= BUFFER_W-1, x1, BUFFER_W-1)
+    ratio = (0.5 + cx0 - x0) / w
+    uv    = lerp(u, v, ratio)
+    duv   = (v - u) / w
+    
+    pixel = rowStart
+    pixel += cast(_long_, cx0)
+    for x as integer = cx0 to cx1
+        *pixel = image.getPixel(uv.x / uv.z, uv.y / uv.z)
+        pixel += 1
+        uv += duv
+    next x
+end sub
+private sub drawTexturedTrapezoid(a as Vector2, c as Vector2, b as Vector2, d as Vector2, p as Vector2, r as Vector2, q as Vector2, s as Vector2, texture as any ptr)
     using Rasterizer
     dim as Image32 image
     dim as Vector2 uv0, uv1, duv0, duv1
+    dim as any ptr buffer, rowStart
+    dim as integer ctop, cbtm, h, top, btm
+    dim as double  perc, skip, dx0, dx1, x0, x1
+    image.readInfo(texture)
+    buffer = screenptr
+    if image.pixdata <> 0 and buffer <> 0 then
+        if a.x > c.x then swap a, c: swap p, r
+        if b.x > d.x then swap b, d: swap q, s
+        top = a.y
+        btm = b.y
+        h   = btm - top + 1
+        ctop = iif(top >= 0, top, 0)
+        cbtm = iif(btm <= BUFFER_H-1, btm, BUFFER_H-1)
+        skip = ctop - top
+        perc = (0.5 + skip) / h
+        x0 = lerpd(a.x, b.x, perc)
+        x1 = lerpd(c.x, d.x, perc)
+        dx0 = (b.x - a.x) / h
+        dx1 = (d.x - c.x) / h
+        uv0 = lerp(p, q, perc)
+        uv1 = lerp(r, s, perc)
+        duv0 = (q - p) / h
+        duv1 = (s - r) / h
+        rowStart = buffer + ctop*BUFFER_PITCH
+        screenlock
+        for y as integer = ctop to cbtm
+            drawTexturedHorizontalLine rowStart, int(x0), int(x1), uv0, uv1, image
+            x0 += dx0
+            x1 += dx1
+            uv0 += duv0
+            uv1 += duv1
+            rowStart += BUFFER_PITCH
+        next y
+        screenunlock
+    end if
+end sub
+private sub drawTexturedTrapezoid(a as Vector2, c as Vector2, b as Vector2, d as Vector2, p as Vector3, r as Vector3, q as Vector3, s as Vector3, texture as any ptr)
+    using Rasterizer
+    dim as Image32 image
+    dim as Vector3 uv0, uv1, duv0, duv1
     dim as any ptr buffer, rowStart
     dim as integer ctop, cbtm, h, top, btm
     dim as double  perc, skip, dx0, dx1, x0, x1
