@@ -691,18 +691,12 @@ sub renderBspFaces(node as BspNode3 ptr, faces() as Face3, byref mesh as Mesh3, 
 end sub
 sub renderObjects(objects() as Object3 ptr, byref camera as CFrame3, byref world as CFrame3, renderMode as integer, textureMdoe as integer = -1)
     dim as Mesh3 mesh
-    dim as integer keys(any)
-    dim as double vals(any)
     for i as integer = 0 to ubound(objects)
         if objects(i)->visible then
-            array_append(keys, i)
-            array_append(vals, objects(i)->position = camera.position)
+            mesh = objects(i)->meshToWorld()
+            renderFaces mesh, camera, world, renderMode, textureMdoe
+            'renderBspFaces o.mesh.faces(), mesh, camera, world, textureMdoe
         end if
-    next i
-    for i as integer = 0 to ubound(objects)
-        mesh = objects(i)->meshToWorld()
-        renderFaces mesh, camera, world, renderMode, textureMdoe
-        'renderBspFaces o.mesh.faces(), mesh, camera, world, textureMdoe
     next i
 end sub
 sub renderParticles(particles() as Particle3 ptr, byref camera as CFrame3)
