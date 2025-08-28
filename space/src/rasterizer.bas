@@ -179,8 +179,9 @@ end sub
 sub Rasterizer.clipPolyToViewport overload(vertexes() as Vector2, uvs() as Vector2, clippedVerts() as Vector2, clippedUvs() as Vector2, side as integer = 0)
     dim as Vector2 a, b, c, newVerts(any)
     dim as Vector2 u, v, w, newUvs(any)
-    dim as integer x0 = 0, x1 = BUFFER_W-1
-    dim as integer y0 = 0, y1 = BUFFER_H-1
+    dim as integer x0 = 1, x1 = BUFFER_W-2
+    dim as integer y0 = 1, y1 = BUFFER_H-2
+    dim as double pct
     select case side
     case 0
         for i as integer = 0 to ubound(vertexes)
@@ -192,14 +193,16 @@ sub Rasterizer.clipPolyToViewport overload(vertexes() as Vector2, uvs() as Vecto
                 array_append(newVerts, a)
                 array_append(newUvs  , u)
                 if b.x > x1 then
-                    c = a + (b-a) * (x1-a.x)/(b.x-a.x)
-                    w = u + (v-u) * (x1-a.x)/(b.x-a.x)
+                    pct = (x1-a.x)/(b.x-a.x)
+                    c   = a + (b-a) * pct
+                    w   = u + (v-u) * pct
                     array_append(newVerts, c)
                     array_append(newUvs  , w)
                 end if
             elseif b.x <= x1 then
-                c = b + (a-b) * (x1-b.x)/(a.x-b.x)
-                w = v + (u-v) * (x1-b.x)/(a.x-b.x)
+                pct = (x1-b.x)/(a.x-b.x)
+                c   = b + (a-b) * pct
+                w   = v + (u-v) * pct
                 array_append(newVerts, c)
                 array_append(newUvs  , w)
             end if
@@ -214,14 +217,16 @@ sub Rasterizer.clipPolyToViewport overload(vertexes() as Vector2, uvs() as Vecto
                 array_append(newVerts, a)
                 array_append(newUvs  , u)
                 if b.y < y0 then
-                    c = a + (b-a) * (a.y-y0)/(a.y-b.y)
-                    w = u + (v-u) * (a.y-y0)/(a.y-b.y)
+                    pct = (a.y-y0)/(a.y-b.y)
+                    c   = a + (b-a) * pct
+                    w   = u + (v-u) * pct
                     array_append(newVerts, c)
                     array_append(newUvs  , w)
                 end if
             elseif b.y >= y0 then
-                c = b + (a-b) * (b.y-y0)/(b.y-a.y)
-                w = v + (u-v) * (b.y-y0)/(b.y-a.y)
+                pct = (b.y-y0)/(b.y-a.y)
+                c   = b + (a-b) * pct
+                w   = v + (u-v) * pct
                 array_append(newVerts, c)
                 array_append(newUvs  , w)
             end if
@@ -236,14 +241,16 @@ sub Rasterizer.clipPolyToViewport overload(vertexes() as Vector2, uvs() as Vecto
                 array_append(newVerts, a)
                 array_append(newUvs  , u)
                 if b.x < x0 then
-                    c = a + (b-a) * (a.x-y0)/(a.x-b.x)
-                    w = u + (v-u) * (a.x-y0)/(a.x-b.x)
+                    pct = (a.x-y0)/(a.x-b.x)
+                    c   = a + (b-a) * pct
+                    w   = u + (v-u) * pct
                     array_append(newVerts, c)
                     array_append(newUvs  , w)
                 end if
             elseif b.x >= x0 then
-                c = b + (a-b) * (b.x-x0)/(b.x-a.x)
-                w = v + (u-v) * (b.x-x0)/(b.x-a.x)
+                pct = (b.x-x0)/(b.x-a.x)
+                c   = b + (a-b) * pct
+                w   = v + (u-v) * pct
                 array_append(newVerts, c)
                 array_append(newUvs  , w)
             end if
@@ -258,14 +265,16 @@ sub Rasterizer.clipPolyToViewport overload(vertexes() as Vector2, uvs() as Vecto
                 array_append(clippedVerts, a)
                 array_append(clippedUvs  , u)
                 if b.y > y1 then
-                    c = a + (b-a) * (y1-a.y)/(b.y-a.y)
-                    w = u + (v-u) * (y1-a.y)/(b.y-a.y)
+                    pct = (y1-a.y)/(b.y-a.y)
+                    c   = a + (b-a) * pct
+                    w   = u + (v-u) * pct
                     array_append(clippedVerts, c)
                     array_append(clippedUvs  , w)
                 end if
             elseif b.y <= y1 then
-                c = b + (a-b) * (y1-b.y)/(a.y-b.y)
-                w = v + (u-v) * (y1-b.y)/(a.y-b.y)
+                pct = (y1-b.y)/(a.y-b.y)
+                c   = b + (a-b) * pct
+                w   = v + (u-v) * pct
                 array_append(clippedVerts, c)
                 array_append(clippedUvs  , w)
             end if
@@ -280,6 +289,7 @@ sub Rasterizer.clipPolyToViewport overload(vertexes() as Vector2, uvs() as Vecto
     dim as Vector3 u, v, w, newUvs(any)
     dim as integer x0 = 1, x1 = BUFFER_W-2
     dim as integer y0 = 1, y1 = BUFFER_H-2
+    dim as double pct
     select case side
     case 0
         for i as integer = 0 to ubound(vertexes)
@@ -291,14 +301,16 @@ sub Rasterizer.clipPolyToViewport overload(vertexes() as Vector2, uvs() as Vecto
                 array_append(newVerts, a)
                 array_append(newUvs  , u)
                 if b.x > x1 then
-                    c = a + (b-a) * (x1-a.x)/(b.x-a.x)
-                    w = u + (v-u) * (x1-a.x)/(b.x-a.x)
+                    pct = (x1-a.x)/(b.x-a.x)
+                    c   = a + (b-a) * pct
+                    w   = u + (v-u) * pct 
                     array_append(newVerts, c)
                     array_append(newUvs  , w)
                 end if
             elseif b.x <= x1 then
-                c = b + (a-b) * (x1-b.x)/(a.x-b.x)
-                w = v + (u-v) * (x1-b.x)/(a.x-b.x)
+                pct = (x1-b.x)/(a.x-b.x)
+                c   = b + (a-b) * pct
+                w   = v + (u-v) * pct
                 array_append(newVerts, c)
                 array_append(newUvs  , w)
             end if
@@ -313,14 +325,16 @@ sub Rasterizer.clipPolyToViewport overload(vertexes() as Vector2, uvs() as Vecto
                 array_append(newVerts, a)
                 array_append(newUvs  , u)
                 if b.y < y0 then
-                    c = a + (b-a) * (a.y-y0)/(a.y-b.y)
-                    w = u + (v-u) * (a.y-y0)/(a.y-b.y)
+                    pct = (a.y-y0)/(a.y-b.y)
+                    c   = a + (b-a) * pct
+                    w   = u + (v-u) * pct
                     array_append(newVerts, c)
                     array_append(newUvs  , w)
                 end if
             elseif b.y >= y0 then
-                c = b + (a-b) * (b.y-y0)/(b.y-a.y)
-                w = v + (u-v) * (b.y-y0)/(b.y-a.y)
+                pct = (b.y-y0)/(b.y-a.y)
+                c   = b + (a-b) * pct
+                w   = v + (u-v) * pct
                 array_append(newVerts, c)
                 array_append(newUvs  , w)
             end if
@@ -335,14 +349,16 @@ sub Rasterizer.clipPolyToViewport overload(vertexes() as Vector2, uvs() as Vecto
                 array_append(newVerts, a)
                 array_append(newUvs  , u)
                 if b.x < x0 then
-                    c = a + (b-a) * (a.x-y0)/(a.x-b.x)
-                    w = u + (v-u) * (a.x-y0)/(a.x-b.x)
+                    pct = (a.x-y0)/(a.x-b.x)
+                    c   = a + (b-a) * pct
+                    w   = u + (v-u) * pct
                     array_append(newVerts, c)
                     array_append(newUvs  , w)
                 end if
             elseif b.x >= x0 then
-                c = b + (a-b) * (b.x-x0)/(b.x-a.x)
-                w = v + (u-v) * (b.x-x0)/(b.x-a.x)
+                pct = (b.x-x0)/(b.x-a.x)
+                c   = b + (a-b) * pct
+                w   = v + (u-v) * pct
                 array_append(newVerts, c)
                 array_append(newUvs  , w)
             end if
@@ -357,14 +373,16 @@ sub Rasterizer.clipPolyToViewport overload(vertexes() as Vector2, uvs() as Vecto
                 array_append(clippedVerts, a)
                 array_append(clippedUvs  , u)
                 if b.y > y1 then
-                    c = a + (b-a) * (y1-a.y)/(b.y-a.y)
-                    w = u + (v-u) * (y1-a.y)/(b.y-a.y)
+                    pct = (y1-a.y)/(b.y-a.y)
+                    c   = a + (b-a) * pct
+                    w   = u + (v-u) * pct
                     array_append(clippedVerts, c)
                     array_append(clippedUvs  , w)
                 end if
             elseif b.y <= y1 then
-                c = b + (a-b) * (y1-b.y)/(a.y-b.y)
-                w = v + (u-v) * (y1-b.y)/(a.y-b.y)
+                pct = (y1-b.y)/(a.y-b.y)
+                c   = b + (a-b) * pct
+                w   = v + (u-v) * pct
                 array_append(clippedVerts, c)
                 array_append(clippedUvs  , w)
             end if

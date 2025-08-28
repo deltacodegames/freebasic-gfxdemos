@@ -309,9 +309,9 @@ sub clipViewPoly3NearZ overload(vertexes() as Vector3, uvs() as Vector2, clipped
     dim as Vector3 normals(0) = { Vector3(0, 0, 1) }
     dim as Vector3 positions(0) = { Vector3(0, 0, 1/4) }
     dim as Vector3 normal = normalize(normals(index))
-    dim as Vector3 a, b, c, newVerts(any), position, u3, v3, w3
+    dim as Vector3 a, b, c, newVerts(any), position
     dim as Vector2 newUvs(any), u, v, w
-    dim as double dta, dtb
+    dim as double dta, dtb, pct
 
     position = positions(index)
     
@@ -326,14 +326,16 @@ sub clipViewPoly3NearZ overload(vertexes() as Vector3, uvs() as Vector2, clipped
             array_append(newVerts, a)
             array_append(newUvs  , u)
             if dtb < 0 then
-                c = a + (b - a) * dta / (dta + abs(dtb))
-                w = u + (v - u) * dta / (dta + abs(dtb))
+                pct = dta / (dta + abs(dtb))
+                c = a + (b - a) * pct
+                w = u + (v - u) * pct
                 array_append(newVerts, c)
                 array_append(newUvs  , w)
             end if
         elseif dtb >= 0 then
-            c = b + (a - b) * dtb / (dtb + abs(dta))
-            w = v + (u - v) * dtb / (dtb + abs(dta))
+            pct = dtb / (dtb + abs(dta))
+            c = b + (a - b) * pct
+            w = v + (u - v) * pct
             array_append(newVerts, c)
             array_append(newUvs  , w)
         end if
