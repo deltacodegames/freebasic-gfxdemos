@@ -875,6 +875,9 @@ sub main(game as GameSession)
                 game.renderMode = RenderModes.Textured
             end if
         end if
+        if game.keyPress(SC_F6) then
+            Rasterizer.togglePreClipping
+        end if
 
         if game.keyPress(SC_SLASH ) then textureMode = TextureModes.Auto
         if game.keyPress(SC_COMMA ) then textureMode -= iif(textureMode > TextureModes.Best , 1, 0)
