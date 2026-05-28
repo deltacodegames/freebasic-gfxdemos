@@ -14,6 +14,41 @@
 '    fbc64 %f -w all -gen gcc -O 3 -Wc -march=native
 ' -----------------------------------------------------------------------------
 
+' -----------------------------------------------------------------------------
+' CONTROLS
+'
+' F1 - Debug Info
+' F2 - Toggle solid polygon render mode
+' F3 - Toggle/cycle wireframe modes
+' F4 - Toggle orientation-only view for objects
+' F5 - Toggle between affine and perspective-correct texture mapping
+'
+' Number Row 1 ( Free fly mode )
+'
+'     Arrow keys   - Look (pitch and yaw)
+'     Q,E          - Roll left, roll right
+'     W,S,A,D      - Move forward, move backward, strafe-left, strafe-right
+'     SPACE/LSHIFT - Move up, move down
+'     Left mouse   - Hold and move mouse to look around (pitch and yaw)
+'     Right mouse  - Hold and move mouse to look around (pitch and roll)
+'
+' Number Row 2 ( Spaceship chase view )
+'
+'     Arrow keys   - Turn (pitch and yaw)
+'     Q,E          - Roll left, roll right
+'     W,S,A,D      - Speed up, slow down or reverse, strafe left, strafe right
+'     SPACE/LSHIFT - Hover up, hover down
+'     TAB          - Cycle between different chase views
+'
+' Number Row 3 ( Random camera angle on target )
+'
+'     TAB          - Cycle target object
+'     Left mouse   - Hold and move mouse to control view angle
+'     Mouse wheel  - Zoom in/out
+'     Number Row 3 - Reset view
+'
+' -----------------------------------------------------------------------------
+
 #cmdline "-i inc/"
 #cmdline "-i src/inc/"
 
