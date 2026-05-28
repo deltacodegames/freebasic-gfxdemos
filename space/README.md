@@ -14,21 +14,21 @@ Licensed under the MIT License.
 ## Controls
 
 | Key          | Description                                                       |
-|--------------|-------------------------------------------------------------------|
+| ------------ | ----------------------------------------------------------------- |
 | Number Row 1 | Enter [**Free Fly Mode**](#free-fly-mode)                         |
 | Number Row 2 | Enter [**Spaceship Chase View Mode**](#spaceship-chase-view-mode) |
 | Number Row 3 | Enter [**Random Camera View Mode**](#random-camera-view-mode)     |
-| ESC          | End Program                                                       |
 | F1           | Toggle debug Info                                                 |
 | F2           | Toggle solid polygon render mode                                  |
 | F3           | Toggle/cycle wireframe modes                                      |
 | F4           | Toggle orientation-only view for objects                          |
 | F5           | Toggle between affine and perspective-correct texture mapping     |
+| ESC          | End Program                                                       |
 
 ## Free Fly Mode
 
 | Key          | Description                                            |
-|--------------|--------------------------------------------------------|
+| ------------ | ------------------------------------------------------ |
 | Arrow keys   | Look (pitch and yaw)                                   |
 | Q,E          | Roll left, roll right                                  |
 | W,S,A,D      | Move forward, move backward, strafe-left, strafe-right |
@@ -39,7 +39,7 @@ Licensed under the MIT License.
 ## Spaceship Chase View Mode
 
 | Key          | Description                                               |
-|--------------|-----------------------------------------------------------|
+| ------------ | --------------------------------------------------------- |
 | Arrow keys   | Turn (pitch and yaw)                                      |
 | Q,E          | Roll left, roll right                                     |
 | W,S,A,D      | Speed up, slow down or reverse, strafe left, strafe right |
@@ -49,7 +49,7 @@ Licensed under the MIT License.
 ## Random Camera View Mode
 
 | Key          | Description                               |
-|--------------|-------------------------------------------|
+| ------------ | ----------------------------------------- |
 | TAB          | Cycle target object                       |
 | Left mouse   | Hold and move mouse to control view angle |
 | Mouse wheel  | Zoom in/out                               |
