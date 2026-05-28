@@ -15,6 +15,7 @@ type Image32
     as _long_  bpp
     as _long_  pitch
     as any ptr pixdata
+    as _long_  pixmod
     as _long_  pixrange
     as _long_  w, h
     declare function getPixel     (x as _long_, y as _long_) as ulong

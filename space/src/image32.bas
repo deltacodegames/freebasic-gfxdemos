@@ -8,6 +8,7 @@ function Image32.getPixel(x as _long_, y as _long_) as ulong
     dim as ulong ptr pixel
     dim as _long_ offset
     offset = this.pitch * y + this.bpp * x
+    offset = offset and this.pixmod
     pixel = this.pixdata + offset
     return *pixel
 end function
@@ -15,6 +16,7 @@ function Image32.getPixel(x as double, y as double) as ulong
     dim as ulong ptr pixel
     dim as _long_ offset
     offset = this.pitch * int(this.h * y) + this.bpp * int(this.w * x)
+    offset = offset and this.pixmod
     pixel = this.pixdata + offset
     return *pixel
 end function
@@ -22,6 +24,7 @@ function Image32.getPixelSafe(x as _long_, y as _long_) as ulong
     dim as ulong ptr pixel
     dim as _long_ offset
     offset = this.pitch * y + this.bpp * x
+    offset = offset and this.pixmod
     if offset >= 0 and offset < this.pixrange then
         pixel = this.pixdata + offset
         return *pixel
@@ -33,6 +36,7 @@ function Image32.getPixelSafe(x as double, y as double) as ulong
     dim as ulong ptr pixel
     dim as _long_ offset
     offset = this.pitch * int(this.h * y) + this.bpp * int(this.w * x)
+    offset = offset and this.pixmod
     if offset >= 0 and offset < this.pixrange then
         pixel = this.pixdata + offset
         return *pixel
@@ -45,6 +49,7 @@ function Image32.readInfo(imageBuffer as any ptr) as Image32
     if imageinfo(imageBuffer, this.w, this.h, this.bpp, this.pitch, this.pixdata) <> 1 then
         this.buffer = imageBuffer
         this.pixrange = this.pitch * (this.h + 1) - 1
+        this.pixmod   = this.w * this.h * this.bpp - 1
     end if
     return this
 end function
