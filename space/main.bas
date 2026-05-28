@@ -17,6 +17,7 @@
 #cmdline "-i inc/"
 #cmdline "-i src/inc/"
 
+#cmdline "-b src/dpi.bas"
 #cmdline "-b src/mouse2.bas"
 #cmdline "-b src/vector2.bas"
 #cmdline "-b src/vector3.bas"
@@ -33,6 +34,7 @@
 #cmdline "-b gamesession.bas"
 #cmdline "-b helpers.bas"
 
+#include once "dpi.bi"
 #include once "fbgfx.bi"
 #include once "mouse2.bi"
 #include once "vector2.bi"
@@ -221,6 +223,7 @@ sub shutdown(byref game as GameSession)
 end sub
 
 sub initScreen()
+    EnableDPIAwareness()
     ScreenMode.readSettings()
     ScreenMode.flags = GFX_FULLSCREEN
     ScreenMode.pages = 2
