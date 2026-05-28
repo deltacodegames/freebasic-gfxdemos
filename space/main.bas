@@ -118,7 +118,7 @@ sub init(byref game as GameSession)
     end if
     
     spaceship->mesh->doubleSided = true
-    textureId = game.addTexture(64, 64, "data/mesh/textures/spaceship3.bmp")
+    textureId = game.addTexture(64, 64, "data/mesh/textures/spaceship3q.bmp")
     if game.getTexture(textureId) then
         game.generateShades(textureId)
         for i as integer = 0 to ubound(game.shades, 2)
