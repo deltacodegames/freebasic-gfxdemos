@@ -1,5 +1,5 @@
 ' -----------------------------------------------------------------------------
-' Copyright (c) 2025 Joe King
+' Copyright (c) 2026 Joe King
 ' See main file or LICENSE for license and build info.
 ' -----------------------------------------------------------------------------
 #include once "object3.bi"

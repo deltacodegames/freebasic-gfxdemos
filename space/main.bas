@@ -1,7 +1,7 @@
 ' -----------------------------------------------------------------------------
 '  A Nameless 3D Polygonal Software Renderer & Rasterizer
 '
-'  Copyright (c) 2025 Joe King
+'  Copyright (c) 2026 Joe King
 '  Licensed under the MIT License.
 '  See LICENSE file or https://opensource.org/licenses/MIT for details.
 '
