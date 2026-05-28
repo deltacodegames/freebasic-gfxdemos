@@ -42,10 +42,10 @@
 '
 ' Number Row 3 ( Random camera angle on target )
 '
-'     TAB          - Cycle target object
 '     Left mouse   - Hold and move mouse to control view angle
 '     Mouse wheel  - Zoom in/out
 '     Number Row 3 - Reset view
+'     TAB          - Cycle target object
 '
 ' -----------------------------------------------------------------------------
 
